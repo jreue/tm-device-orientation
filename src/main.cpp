@@ -1,9 +1,13 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <Arduino.h>
 #include <MPU6050_light.h>
 #include <shared_hardware_config.h>
+#include <stdint.h>
 
+#include "Button.h"
 #include "EspNowHelper.h"
+#include "Timer.h"
 #include "Wire.h"
 #include "hardware_config.h"
 
@@ -15,10 +19,15 @@ EspNowHelper espNowHelper;
 unsigned long timer = 0;
 const unsigned long ORIENTATION_DISPLAY_INTERVAL_MS = 100;
 
+bool locked = false;
+unsigned long lockStartTime = 0;
+const unsigned long timerDuration = 5000;
+
 void setupDisplay();
 void renderCalibrationSetup();
 void renderOrientation();
 void setupMPU();
+void onButtonPressDownCb(void* button_handle, void* usr_data);
 
 bool isCalibrated() {
   return false;
@@ -44,15 +53,42 @@ void setup() {
   setupMPU();
 
   delay(1000);
+
+  Button* btn = new Button(LOCK_BUTTON_PIN, false);
+
+  btn->attachPressDownEventCb(&onButtonPressDownCb, NULL);
 }
 
 void loop() {
   mpu.update();
 
-  if ((millis() - timer) > ORIENTATION_DISPLAY_INTERVAL_MS) {
-    renderOrientation();
+  if (locked) {
+    Timer::drawCircularTimer(oled, lockStartTime, timerDuration);
+    if (millis() - lockStartTime >= timerDuration) {
+      locked = false;
+      // Call your desired function here after timer expires
+      Serial.println("Timer expired, unlocking device.");
+    }
+    // Do not render orientation while timer is active
+    return;
+  }
 
-    timer = millis();
+  if (!locked) {
+    if ((millis() - timer) > ORIENTATION_DISPLAY_INTERVAL_MS) {
+      renderOrientation();
+      timer = millis();
+    }
+  }
+}
+
+void onButtonPressDownCb(void* button_handle, void* usr_data) {
+  Serial.println("Button pressed down");
+
+  if (!locked) {
+    locked = true;
+    lockStartTime = millis();
+  } else {
+    Serial.println("Device is locked, ignoring button press");
   }
 }
 
