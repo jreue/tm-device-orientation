@@ -1,4 +1,3 @@
-
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <Arduino.h>
@@ -93,10 +92,12 @@ void setup() {
   delay(1000);
 
   Button* btn = new Button(SUBMIT_BUTTON_PIN, false);
-  Button* masterCalibrateButton = new Button(CALIBRATE_BUTTON_PIN, false);
-
   btn->attachPressDownEventCb(&onSubmitButtonPressed, NULL);
+
+#if DEVICE_ROLE == DEVICE_ROLE_MASTER
+  Button* masterCalibrateButton = new Button(CALIBRATE_BUTTON_PIN, false);
   masterCalibrateButton->attachPressDownEventCb(&onMasterCalibrateButtonPressed, NULL);
+#endif
 }
 
 void loop() {

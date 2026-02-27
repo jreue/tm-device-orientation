@@ -7,7 +7,10 @@
 
 class Timer {
   public:
-    static void drawCircularTimer(Adafruit_SSD1306& oled, unsigned long startTime, unsigned long durationMs);
+    static void drawCircularTimer(Adafruit_SSD1306& oled, unsigned long startTime,
+                                  unsigned long durationMs);
+    static void drawHorizontalTimer(Adafruit_SSD1306& oled, unsigned long startTime,
+                                    unsigned long durationMs);
 
   private:
     static constexpr unsigned char timerRadius = 15;
