@@ -16,18 +16,14 @@ MPU6050 mpu(Wire);
 
 uint8_t hubAddress[] = HUB_MAC_ADDRESS;
 EspNowHelper espNowHelper;
-unsigned long timer = 0;
-const unsigned long ORIENTATION_DISPLAY_INTERVAL_MS = 100;
 
-bool locked = false;
-unsigned long lockStartTime = 0;
-const unsigned long timerDuration = 5000;
+const unsigned long ORIENTATION_DISPLAY_INTERVAL_MS = 100;
 
 void setupDisplay();
 void renderCalibrationSetup();
 void renderOrientation();
 void setupMPU();
-void onButtonPressDownCb(void* button_handle, void* usr_data);
+void onSubmitButtonPressDownCb(void* button_handle, void* usr_data);
 void onMasterCalibrateButtonPressDownCb(void* button_handle, void* usr_data);
 
 bool isCalibrated() {
@@ -44,10 +40,14 @@ void setup() {
   Wire.begin();
 
   pinMode(LED_ROUND_1_SUCCESS_PIN, OUTPUT);
+  pinMode(LED_ROUND_2_SUCCESS_PIN, OUTPUT);
+  pinMode(LED_ROUND_3_SUCCESS_PIN, OUTPUT);
   pinMode(LED_CALIBRATED_PIN, OUTPUT);
 
-  digitalWrite(LED_ROUND_1_SUCCESS_PIN, HIGH);
-  digitalWrite(LED_CALIBRATED_PIN, HIGH);
+  digitalWrite(LED_ROUND_1_SUCCESS_PIN, LOW);
+  digitalWrite(LED_ROUND_2_SUCCESS_PIN, LOW);
+  digitalWrite(LED_ROUND_3_SUCCESS_PIN, LOW);
+  digitalWrite(LED_CALIBRATED_PIN, LOW);
 
   delay(2000);
 
@@ -61,44 +61,21 @@ void setup() {
 
   delay(1000);
 
-  Button* btn = new Button(LOCK_BUTTON_PIN, false);
+  Button* btn = new Button(SUBMIT_BUTTON_PIN, false);
   Button* masterCalibrateButton = new Button(CALIBRATE_BUTTON_PIN, false);
 
-  btn->attachPressDownEventCb(&onButtonPressDownCb, NULL);
+  btn->attachPressDownEventCb(&onSubmitButtonPressDownCb, NULL);
   masterCalibrateButton->attachPressDownEventCb(&onMasterCalibrateButtonPressDownCb, NULL);
 }
 
 void loop() {
   mpu.update();
 
-  if (locked) {
-    Timer::drawCircularTimer(oled, lockStartTime, timerDuration);
-    if (millis() - lockStartTime >= timerDuration) {
-      locked = false;
-      // Call your desired function here after timer expires
-      Serial.println("Timer expired, unlocking device.");
-    }
-    // Do not render orientation while timer is active
-    return;
-  }
-
-  if (!locked) {
-    if ((millis() - timer) > ORIENTATION_DISPLAY_INTERVAL_MS) {
-      renderOrientation();
-      timer = millis();
-    }
-  }
+  renderOrientation();
 }
 
-void onButtonPressDownCb(void* button_handle, void* usr_data) {
+void onSubmitButtonPressDownCb(void* button_handle, void* usr_data) {
   Serial.println("Button pressed down");
-
-  if (!locked) {
-    locked = true;
-    lockStartTime = millis();
-  } else {
-    Serial.println("Device is locked, ignoring button press");
-  }
 }
 
 void onMasterCalibrateButtonPressDownCb(void* button_handle, void* usr_data) {
