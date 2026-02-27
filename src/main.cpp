@@ -195,6 +195,7 @@ void onMasterCalibrateButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Master calibrate button pressed down");
   if (isCalibrated()) {
     digitalWrite(LED_CALIBRATED_PIN, HIGH);
+    espNowHelper.sendModuleUpdated(hubAddress, true);
   }
 }
 
