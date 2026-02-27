@@ -29,6 +29,7 @@ struct Orientation {
 };
 
 const int TOTAL_ROUNDS = 3;
+const int ROUND_START_COUNTDOWN = 5;
 
 const Orientation roundTargets[TOTAL_ROUNDS] = {
     {0, 0, 10},    // Round 1
@@ -50,6 +51,7 @@ void onMasterCalibrateButtonPressed(void* button_handle, void* usr_data);
 void updateRoundLEDs();
 void renderCalibrationSetup();
 void renderOrientation();
+void renderRoundStart(int roundNumber);
 void startRound(int roundNumber);
 void completeRound();
 
@@ -211,9 +213,7 @@ void renderOrientation() {
   oled.display();
 }
 
-void startRound(int roundNumber) {
-  isStartingRound = true;  // Set the flag to true
-
+void renderRoundStart(int roundNumber) {
   oled.clearDisplay();
 
   // Center "Round X" text on the horizontal axis
@@ -223,21 +223,26 @@ void startRound(int roundNumber) {
   oled.setCursor((SCREEN_WIDTH - roundTextWidth) / 2, 10);
   oled.printf("Round %d", roundNumber);
 
-  for (int countdown = 5; countdown > 0; --countdown) {
-    oled.setTextSize(4);  // Make the countdown number bigger
+  for (int countdown = ROUND_START_COUNTDOWN; countdown > 0; --countdown) {
+    oled.setTextSize(4);
     oled.setCursor((SCREEN_WIDTH - 24) / 2,
                    (SCREEN_HEIGHT - 32) / 2 + 10);  // Move the number down slightly
     oled.printf("%d", countdown);
     oled.display();
-    delay(1000);  // Wait for 1 second
+    delay(1000);
+
     oled.fillRect((SCREEN_WIDTH - 24) / 2, (SCREEN_HEIGHT - 32) / 2 + 10, 24, 32,
                   BLACK);  // Clear the number
   }
 
   oled.clearDisplay();
   oled.display();
+}
 
-  isStartingRound = false;  // Set the flag to false when done
+void startRound(int roundNumber) {
+  isStartingRound = true;
+  renderRoundStart(roundNumber);
+  isStartingRound = false;
 }
 
 void completeRound() {
