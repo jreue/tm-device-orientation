@@ -41,6 +41,7 @@ Orientation currentOrientation = {0, 0, 0};
 int currentRound = 0;
 bool roundCompleted[TOTAL_ROUNDS] = {false, false, false};
 bool isStartingRound = false;
+bool isCalibrationStaged = false;
 
 void setupDisplay();
 void setupMPU();
@@ -52,6 +53,7 @@ void updateRoundLEDs();
 void renderCalibrationSetup();
 void renderOrientation();
 void renderRoundStart(int roundNumber);
+void renderCalibrationStaged();
 void startRound(int roundNumber);
 void completeRound();
 
@@ -100,6 +102,7 @@ void setup() {
   btn->attachPressDownEventCb(&onSubmitButtonPressed, NULL);
 
 #if DEVICE_ROLE == DEVICE_ROLE_MASTER
+  Serial.println("Setting up master calibrate button...");
   Button* masterCalibrateButton = new Button(CALIBRATE_BUTTON_PIN, false);
   masterCalibrateButton->attachPressDownEventCb(&onMasterCalibrateButtonPressed, NULL);
 #endif
@@ -113,6 +116,10 @@ void loop() {
 
   if (isStartingRound) {
     return;  // Skip rendering if a round is starting
+  }
+
+  if (isCalibrationStaged) {
+    return;  // Skip rendering if calibration is staged but not completed
   }
 
   if ((millis() - timer) > ORIENTATION_DISPLAY_INTERVAL_MS) {
@@ -171,6 +178,13 @@ void onSubmitButtonPressed(void* button_handle, void* usr_data) {
   const Orientation& target = roundTargets[currentRound];
   if (orientationMatches(target, x, y, z)) {
     completeRound();
+
+    if (currentRound >= TOTAL_ROUNDS) {
+      isCalibrationStaged = true;
+      renderCalibrationStaged();
+      return;
+    }
+
     startRound(currentRound);
   } else {
     Serial.printf("Round %d not matched. Try again.\n", currentRound + 1);
@@ -236,6 +250,26 @@ void renderRoundStart(int roundNumber) {
   }
 
   oled.clearDisplay();
+  oled.display();
+}
+
+void renderCalibrationStaged() {
+  oled.clearDisplay();
+
+  // Render "Completed" centered
+  oled.setTextSize(2);
+  int completedTextWidth =
+      9 * 12;  // Approximate width: 12 pixels per character, "Completed" is 9 characters
+  oled.setCursor((SCREEN_WIDTH - completedTextWidth) / 2, 10);
+  oled.println("Completed");
+
+  // Render "Submit Calibration" centered below
+  oled.setTextSize(1);
+  int submitTextWidth =
+      18 * 6;  // Approximate width: 6 pixels per character, "Submit Calibration" is 18 characters
+  oled.setCursor((SCREEN_WIDTH - submitTextWidth) / 2, 40);
+  oled.println("Submit Calibration");
+
   oled.display();
 }
 
