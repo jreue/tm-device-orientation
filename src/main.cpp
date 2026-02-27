@@ -39,6 +39,7 @@ const Orientation roundTargets[TOTAL_ROUNDS] = {
 Orientation currentOrientation = {0, 0, 0};
 int currentRound = 0;
 bool roundCompleted[TOTAL_ROUNDS] = {false, false, false};
+bool isStartingRound = false;
 
 void setupDisplay();
 void setupMPU();
@@ -49,6 +50,8 @@ void onMasterCalibrateButtonPressed(void* button_handle, void* usr_data);
 void updateRoundLEDs();
 void renderCalibrationSetup();
 void renderOrientation();
+void startRound(int roundNumber);
+void completeRound();
 
 // Returns true if all rounds are completed
 bool isCalibrated() {
@@ -98,10 +101,17 @@ void setup() {
   Button* masterCalibrateButton = new Button(CALIBRATE_BUTTON_PIN, false);
   masterCalibrateButton->attachPressDownEventCb(&onMasterCalibrateButtonPressed, NULL);
 #endif
+
+  // Call startRound to display the round loading screen
+  startRound(currentRound + 1);
 }
 
 void loop() {
   mpu.update();
+
+  if (isStartingRound) {
+    return;  // Skip rendering if a round is starting
+  }
 
   if ((millis() - timer) > ORIENTATION_DISPLAY_INTERVAL_MS) {
     setCurrentOrientation();
@@ -158,10 +168,8 @@ void onSubmitButtonPressed(void* button_handle, void* usr_data) {
 
   const Orientation& target = roundTargets[currentRound];
   if (orientationMatches(target, x, y, z)) {
-    roundCompleted[currentRound] = true;
-    currentRound++;
-    updateRoundLEDs();
-
+    completeRound();
+    startRound(currentRound);
   } else {
     Serial.printf("Round %d not matched. Try again.\n", currentRound + 1);
   }
@@ -201,4 +209,39 @@ void renderOrientation() {
   oled.setCursor(0, 40);
   oled.println("Yaw: " + String(currentOrientation.z));
   oled.display();
+}
+
+void startRound(int roundNumber) {
+  isStartingRound = true;  // Set the flag to true
+
+  oled.clearDisplay();
+
+  // Center "Round X" text on the horizontal axis
+  oled.setTextSize(2);  // Make the "Round X" text bigger
+  int roundTextWidth =
+      12 * 6;  // Approximate width: 6 pixels per character, "Round X" is 12 characters max
+  oled.setCursor((SCREEN_WIDTH - roundTextWidth) / 2, 10);
+  oled.printf("Round %d", roundNumber);
+
+  for (int countdown = 5; countdown > 0; --countdown) {
+    oled.setTextSize(4);  // Make the countdown number bigger
+    oled.setCursor((SCREEN_WIDTH - 24) / 2,
+                   (SCREEN_HEIGHT - 32) / 2 + 10);  // Move the number down slightly
+    oled.printf("%d", countdown);
+    oled.display();
+    delay(1000);  // Wait for 1 second
+    oled.fillRect((SCREEN_WIDTH - 24) / 2, (SCREEN_HEIGHT - 32) / 2 + 10, 24, 32,
+                  BLACK);  // Clear the number
+  }
+
+  oled.clearDisplay();
+  oled.display();
+
+  isStartingRound = false;  // Set the flag to false when done
+}
+
+void completeRound() {
+  roundCompleted[currentRound] = true;
+  currentRound++;
+  updateRoundLEDs();
 }
