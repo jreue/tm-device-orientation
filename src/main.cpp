@@ -26,9 +26,34 @@ void setupMPU();
 void onSubmitButtonPressDownCb(void* button_handle, void* usr_data);
 void onMasterCalibrateButtonPressDownCb(void* button_handle, void* usr_data);
 
-bool isCalibrated() {
-  return false;
+// Round target definitions
+struct Orientation {
+    int x;
+    int y;
+    int z;
+};
+
+const Orientation roundTargets[3] = {
+    {0, 0, 10},    // Round 1
+    {10, 10, 20},  // Round 2
+    {20, 20, 0}    // Round 3
+};
+
+bool roundCompleted[3] = {false, false, false};
+
+// Helper to check if orientation matches target (with tolerance)
+bool orientationMatches(const Orientation& target, int x, int y, int z, int tolerance = 2) {
+  return abs(target.x - x) <= tolerance && abs(target.y - y) <= tolerance &&
+         abs(target.z - z) <= tolerance;
 }
+
+// Returns true if all rounds are completed
+bool isCalibrated() {
+  return roundCompleted[0] && roundCompleted[1] && roundCompleted[2];
+}
+
+// Tracks which round is currently active (0-based)
+int currentRound = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -68,14 +93,43 @@ void setup() {
   masterCalibrateButton->attachPressDownEventCb(&onMasterCalibrateButtonPressDownCb, NULL);
 }
 
+void updateRoundLEDs() {
+  digitalWrite(LED_ROUND_1_SUCCESS_PIN, roundCompleted[0] ? HIGH : LOW);
+  digitalWrite(LED_ROUND_2_SUCCESS_PIN, roundCompleted[1] ? HIGH : LOW);
+  digitalWrite(LED_ROUND_3_SUCCESS_PIN, roundCompleted[2] ? HIGH : LOW);
+  digitalWrite(LED_CALIBRATED_PIN, isCalibrated() ? HIGH : LOW);
+}
+
 void loop() {
   mpu.update();
-
   renderOrientation();
+  updateRoundLEDs();
 }
 
 void onSubmitButtonPressDownCb(void* button_handle, void* usr_data) {
-  Serial.println("Button pressed down");
+  Serial.println("Submit button pressed down");
+  if (currentRound >= 3) {
+    Serial.println("All rounds already completed.");
+    return;
+  }
+  // Read current orientation
+  int x = (int)mpu.getAngleX() * -1;
+  int y = (int)mpu.getAngleY();
+  int z = (int)mpu.getAngleZ() * -1;
+  Serial.printf("Current orientation: x=%d, y=%d, z=%d\n", x, y, z);
+  const Orientation& target = roundTargets[currentRound];
+  if (orientationMatches(target, x, y, z)) {
+    roundCompleted[currentRound] = true;
+    Serial.printf("Round %d complete!\n", currentRound + 1);
+    currentRound++;
+    updateRoundLEDs();
+    if (isCalibrated()) {
+      Serial.println("Calibration complete!");
+      digitalWrite(LED_CALIBRATED_PIN, HIGH);
+    }
+  } else {
+    Serial.printf("Round %d not matched. Try again.\n", currentRound + 1);
+  }
 }
 
 void onMasterCalibrateButtonPressDownCb(void* button_handle, void* usr_data) {
