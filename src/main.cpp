@@ -28,6 +28,7 @@ void renderCalibrationSetup();
 void renderOrientation();
 void setupMPU();
 void onButtonPressDownCb(void* button_handle, void* usr_data);
+void onMasterCalibrateButtonPressDownCb(void* button_handle, void* usr_data);
 
 bool isCalibrated() {
   return false;
@@ -42,6 +43,12 @@ void setup() {
 
   Wire.begin();
 
+  pinMode(LED_ROUND_1_SUCCESS_PIN, OUTPUT);
+  pinMode(LED_CALIBRATED_PIN, OUTPUT);
+
+  digitalWrite(LED_ROUND_1_SUCCESS_PIN, HIGH);
+  digitalWrite(LED_CALIBRATED_PIN, HIGH);
+
   delay(2000);
 
   setupDisplay();
@@ -55,8 +62,10 @@ void setup() {
   delay(1000);
 
   Button* btn = new Button(LOCK_BUTTON_PIN, false);
+  Button* masterCalibrateButton = new Button(CALIBRATE_BUTTON_PIN, false);
 
   btn->attachPressDownEventCb(&onButtonPressDownCb, NULL);
+  masterCalibrateButton->attachPressDownEventCb(&onMasterCalibrateButtonPressDownCb, NULL);
 }
 
 void loop() {
@@ -89,6 +98,13 @@ void onButtonPressDownCb(void* button_handle, void* usr_data) {
     lockStartTime = millis();
   } else {
     Serial.println("Device is locked, ignoring button press");
+  }
+}
+
+void onMasterCalibrateButtonPressDownCb(void* button_handle, void* usr_data) {
+  Serial.println("Master calibrate button pressed down");
+  if (isCalibrated()) {
+    digitalWrite(LED_CALIBRATED_PIN, HIGH);
   }
 }
 
