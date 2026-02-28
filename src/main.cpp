@@ -15,6 +15,8 @@ Adafruit_SSD1306 oled(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, &Wire, OLED_RESET);
 MPU6050 mpu(Wire);
 
 uint8_t hubAddress[] = HUB_MAC_ADDRESS;
+uint8_t orientiationMasterAddress[] = ORIENTATION_MASTER_MAC_ADDRESS;
+
 EspNowHelper espNowHelper;
 
 unsigned long timer = 0;
@@ -71,8 +73,23 @@ void setup() {
   Serial.begin(115200);
 
   espNowHelper.begin(DEVICE_ID);
+
+#ifdef DEVICE_ROLE_MASTER
   espNowHelper.addPeer(hubAddress);
   espNowHelper.sendModuleConnected(hubAddress);
+
+  Serial.println("Device role: MASTER");
+  espNowHelper.registerOrientationMessageHandler([](const OrientationSubmissionMessage& message) {
+    Serial.println("Received orientation message from slave module:");
+    Serial.printf("  Roll: %d, Pitch: %d, Yaw: %d\n", message.roll, message.pitch, message.yaw);
+    // Handle received orientation data as needed
+  });
+#endif
+
+#ifdef DEVICE_ROLE_SLAVE
+  Serial.println("Device role: SLAVE");
+  espNowHelper.addPeer(orientiationMasterAddress);
+#endif
 
   Wire.begin();
 
@@ -85,6 +102,8 @@ void setup() {
   digitalWrite(LED_ROUND_2_SUCCESS_PIN, LOW);
   digitalWrite(LED_ROUND_3_SUCCESS_PIN, LOW);
   digitalWrite(LED_CALIBRATED_PIN, LOW);
+
+  digitalWrite(GPIO_NUM_14, LOW);
 
   delay(2000);
 
@@ -101,7 +120,7 @@ void setup() {
   Button* btn = new Button(SUBMIT_BUTTON_PIN, false);
   btn->attachPressDownEventCb(&onSubmitButtonPressed, NULL);
 
-#if DEVICE_ROLE == DEVICE_ROLE_MASTER
+#ifdef DEVICE_ROLE_MASTER
   Serial.println("Setting up master calibrate button...");
   Button* masterCalibrateButton = new Button(CALIBRATE_BUTTON_PIN, false);
   masterCalibrateButton->attachPressDownEventCb(&onMasterCalibrateButtonPressed, NULL);
@@ -176,6 +195,11 @@ void onSubmitButtonPressed(void* button_handle, void* usr_data) {
 
   const Orientation& target = roundTargets[currentRound];
   if (orientationMatches(target, x, y, z)) {
+#ifdef DEVICE_ROLE_SLAVE
+    // Send orientation data to master for logging/verification
+    espNowHelper.sendOrientationUpdated(orientiationMasterAddress, x, y, z, currentRound + 1, true);
+#endif
+
     completeRound();
 
     if (currentRound >= TOTAL_ROUNDS) {
