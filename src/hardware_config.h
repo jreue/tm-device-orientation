@@ -3,19 +3,20 @@
 // ====================
 // This Devices Configuration
 // ====================
-#define DEVICE_ID 112
+#define DEVICE_ID 102
 
 // Master 102
 // Slave 112
 // Slave 113
 
-// #define DEVICE_ROLE_MASTER
-#define DEVICE_ROLE_SLAVE
+#define DEVICE_ROLE_MASTER
+// #define DEVICE_ROLE_SLAVE
 
 // ====================
 // Button Configuration
 // ====================
 #define SUBMIT_BUTTON_PIN GPIO_NUM_5
+#define ROUND_BUTTON_PIN GPIO_NUM_16
 #define CALIBRATE_BUTTON_PIN GPIO_NUM_17
 
 // ====================

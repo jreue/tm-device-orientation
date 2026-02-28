@@ -44,6 +44,7 @@ Orientation currentOrientation = {0, 0, 0};
 int currentRound = 0;
 bool roundCompleted[TOTAL_ROUNDS] = {false, false, false};
 
+bool isRoundStaged = false;
 bool isRoundLoading = false;
 bool isCalibrationStaged = false;
 bool isSlaveWaiting = false;
@@ -66,20 +67,25 @@ bool orientationMatches(const Orientation& target, int x, int y, int z);
 
 void handleMasterOrientationProgressMessage(const OrientationProgressMessage& message);
 void handleSlaveOrientationMessage(const OrientationSubmissionMessage& message);
-void handleSubmitButtonPressed(void* button_handle, void* usr_data);
-void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data);
+
 void handleMasterOrientationMatched();
 void handleSlaveOrientationMatched(int deviceId);
+
+void handleSubmitButtonPressed(void* button_handle, void* usr_data);
+void handleMasterRoundProgressButtonPressed(void* button_handle, void* usr_data);
+void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data);
 
 void updateRoundLEDs();
 
 void renderCalibrationSetup();
 void renderOrientation();
-void renderRoundLoading(int roundNumber);
+void renderRoundStaged();
+void renderRoundLoading();
 void renderCalibrationStaged();
 void renderSlaveWaitScreen();
 
-void startRound(int roundNumber);
+void stageRound();
+void loadRound();
 void completeRound();
 
 void submitAndPossiblyCompleteRound(uint8_t deviceId);
@@ -149,16 +155,30 @@ void setup() {
   btn->attachPressDownEventCb(&handleSubmitButtonPressed, NULL);
 
 #ifdef DEVICE_ROLE_MASTER
+  Serial.println("Setting up master round progress button...");
+  Button* masterRoundProgressButton = new Button(ROUND_BUTTON_PIN, false);
+  masterRoundProgressButton->attachPressDownEventCb(&handleMasterRoundProgressButtonPressed, NULL);
+
   Serial.println("Setting up master calibrate button...");
   Button* masterCalibrateButton = new Button(CALIBRATE_BUTTON_PIN, false);
   masterCalibrateButton->attachPressDownEventCb(&handleMasterCalibrateButtonPressed, NULL);
 #endif
 
-  startRound(currentRound + 1);
+#ifdef DEVICE_ROLE_MASTER
+  stageRound();
+#endif
+#ifdef DEVICE_ROLE_SLAVE
+  isSlaveWaiting = true;
+  renderSlaveWaitScreen();
+#endif
 }
 
 void loop() {
   mpu.update();
+
+  if (isRoundStaged) {
+    return;  // Skip rendering if we are waiting for the next round to start
+  }
 
   if (isRoundLoading) {
     return;  // Skip rendering if a round is loading
@@ -230,6 +250,8 @@ void handleMasterOrientationProgressMessage(const OrientationProgressMessage& me
 
   currentRound = message.round;
   isSlaveWaiting = false;
+
+  loadRound();
 }
 
 void handleMasterOrientationMatched() {
@@ -257,8 +279,7 @@ void submitAndPossiblyCompleteRound(uint8_t deviceId) {
       return;
     }
 
-    espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentRound);
-    startRound(currentRound + 1);
+    stageRound();
   } else {
     Serial.println("Waiting for all players to submit...");
   }
@@ -287,9 +308,21 @@ void resetPlayerSubmissions() {
   }
 }
 
-void startRound(int roundNumber) {
+void stageRound() {
+  isRoundStaged = true;
+  renderRoundStaged();
+}
+
+void loadRound() {
+  isRoundStaged = false;
   isRoundLoading = true;
-  renderRoundLoading(roundNumber);
+  isSlaveWaiting = false;
+
+#ifdef DEVICE_ROLE_MASTER
+  espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentRound);
+#endif
+
+  renderRoundLoading();
   isRoundLoading = false;
 }
 
@@ -302,7 +335,7 @@ void completeRound() {
 }
 
 void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
-  Serial.println("Submit button pressed down");
+  Serial.println("Submit button pressed");
   if (currentRound >= TOTAL_ROUNDS) {
     return;
   }
@@ -322,23 +355,18 @@ void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
     isSlaveWaiting = true;
     renderSlaveWaitScreen();
 #endif
-
-    // completeRound();
-
-    // if (currentRound >= TOTAL_ROUNDS) {
-    //   isCalibrationStaged = true;
-    //   renderCalibrationStaged();
-    //   return;
-    // }
-
-    // startRound(currentRound);
   } else {
     Serial.printf("Round %d not matched. Try again.\n", currentRound + 1);
   }
 }
 
+void handleMasterRoundProgressButtonPressed(void* button_handle, void* usr_data) {
+  Serial.println("Master round progress button pressed");
+  loadRound();
+}
+
 void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data) {
-  Serial.println("Master calibrate button pressed down");
+  Serial.println("Master calibrate button pressed");
   if (isCalibrated()) {
     digitalWrite(LED_CALIBRATED_PIN, HIGH);
     espNowHelper.sendModuleUpdated(hubAddress, true);
@@ -374,7 +402,22 @@ void renderOrientation() {
   oled.display();
 }
 
-void renderRoundLoading(int roundNumber) {
+void renderRoundStaged() {
+  oled.clearDisplay();
+
+  // Render "Start Round" centered
+  oled.setTextSize(1);
+  int waitingTextWidth =
+      11 * 6;  // Approximate width: 6 pixels per character, "Start Round" is 11 characters
+  oled.setCursor((OLED_SCREEN_WIDTH - waitingTextWidth) / 2, 40);
+  oled.println("Start Round");
+
+  oled.display();
+}
+
+void renderRoundLoading() {
+  int roundNumber = currentRound + 1;  // Display rounds starting from 1 instead of 0
+
   oled.clearDisplay();
 
   // Center "Round X" text on the horizontal axis
