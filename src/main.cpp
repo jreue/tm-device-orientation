@@ -44,6 +44,7 @@ int currentRound = 0;
 bool roundCompleted[TOTAL_ROUNDS] = {false, false, false};
 bool isStartingRound = false;
 bool isCalibrationStaged = false;
+bool isSlaveWaiting = false;
 
 const int NUM_PLAYERS = 2;  // Master + 1 Slave
 struct PlayerSubmission {
@@ -68,10 +69,13 @@ void handleMasterOrientationMatched();
 void handleSlaveOrientationMatched(int deviceId);
 
 void updateRoundLEDs();
+
 void renderCalibrationSetup();
 void renderOrientation();
 void renderRoundStart(int roundNumber);
 void renderCalibrationStaged();
+void renderSlaveWaitScreen();
+
 void startRound(int roundNumber);
 void completeRound();
 
@@ -156,6 +160,10 @@ void loop() {
 
   if (isCalibrationStaged) {
     return;  // Skip rendering if calibration is staged but not completed
+  }
+
+  if (isSlaveWaiting) {
+    return;  // Skip rendering if slave is waiting for master
   }
 
   if ((millis() - timer) > ORIENTATION_DISPLAY_INTERVAL_MS) {
@@ -263,6 +271,20 @@ void resetPlayerSubmissions() {
   }
 }
 
+void startRound(int roundNumber) {
+  isStartingRound = true;
+  renderRoundStart(roundNumber);
+  isStartingRound = false;
+}
+
+void completeRound() {
+  resetPlayerSubmissions();
+
+  roundCompleted[currentRound] = true;
+  currentRound++;
+  updateRoundLEDs();
+}
+
 void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Submit button pressed down");
   if (currentRound >= TOTAL_ROUNDS) {
@@ -281,6 +303,8 @@ void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
 #endif
 #ifdef DEVICE_ROLE_SLAVE
     espNowHelper.sendOrientationUpdated(orientiationMasterAddress, x, y, z, currentRound + 1, true);
+    isSlaveWaiting = true;
+    renderSlaveWaitScreen();
 #endif
 
     // completeRound();
@@ -380,16 +404,15 @@ void renderCalibrationStaged() {
   oled.display();
 }
 
-void startRound(int roundNumber) {
-  isStartingRound = true;
-  renderRoundStart(roundNumber);
-  isStartingRound = false;
-}
+void renderSlaveWaitScreen() {
+  oled.clearDisplay();
 
-void completeRound() {
-  resetPlayerSubmissions();
+  // Render "Waiting for Master" centered
+  oled.setTextSize(1);
+  int waitingTextWidth =
+      18 * 6;  // Approximate width: 6 pixels per character, "Waiting for Master" is 18 characters
+  oled.setCursor((OLED_SCREEN_WIDTH - waitingTextWidth) / 2, 40);
+  oled.println("Waiting for Master");
 
-  roundCompleted[currentRound] = true;
-  currentRound++;
-  updateRoundLEDs();
+  oled.display();
 }
