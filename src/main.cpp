@@ -43,7 +43,8 @@ const Orientation roundTargets[TOTAL_ROUNDS] = {
 Orientation currentOrientation = {0, 0, 0};
 int currentRound = 0;
 bool roundCompleted[TOTAL_ROUNDS] = {false, false, false};
-bool isStartingRound = false;
+
+bool isRoundLoading = false;
 bool isCalibrationStaged = false;
 bool isSlaveWaiting = false;
 
@@ -74,7 +75,7 @@ void updateRoundLEDs();
 
 void renderCalibrationSetup();
 void renderOrientation();
-void renderRoundStart(int roundNumber);
+void renderRoundLoading(int roundNumber);
 void renderCalibrationStaged();
 void renderSlaveWaitScreen();
 
@@ -159,8 +160,8 @@ void setup() {
 void loop() {
   mpu.update();
 
-  if (isStartingRound) {
-    return;  // Skip rendering if a round is starting
+  if (isRoundLoading) {
+    return;  // Skip rendering if a round is loading
   }
 
   if (isCalibrationStaged) {
@@ -287,9 +288,9 @@ void resetPlayerSubmissions() {
 }
 
 void startRound(int roundNumber) {
-  isStartingRound = true;
-  renderRoundStart(roundNumber);
-  isStartingRound = false;
+  isRoundLoading = true;
+  renderRoundLoading(roundNumber);
+  isRoundLoading = false;
 }
 
 void completeRound() {
@@ -373,7 +374,7 @@ void renderOrientation() {
   oled.display();
 }
 
-void renderRoundStart(int roundNumber) {
+void renderRoundLoading(int roundNumber) {
   oled.clearDisplay();
 
   // Center "Round X" text on the horizontal axis
