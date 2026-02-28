@@ -36,6 +36,10 @@
 #define OLED_I2C_ADDRESS 0x3C
 
 // ====================
+// Buzzer Configuration
+#define BUZZER_PIN GPIO_NUM_14
+
+// ====================
 // MPU6050 Configuration
 // ====================
 #define CALCULATE_OFFSET_GYRO true

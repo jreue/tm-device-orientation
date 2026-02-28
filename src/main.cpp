@@ -94,6 +94,9 @@ bool allPlayersSubmitted();
 void resetPlayerSubmissions();
 bool isCalibrated();
 
+void playSuccessMelody();
+void playTriumphMelody();
+
 // Returns true if all rounds are completed
 bool isCalibrated() {
   for (int i = 0; i < TOTAL_ROUNDS; i++) {
@@ -332,6 +335,8 @@ void completeRound() {
   roundCompleted[currentRound] = true;
   currentRound++;
   updateRoundLEDs();
+
+  playSuccessMelody();
 }
 
 void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
@@ -368,6 +373,7 @@ void handleMasterRoundProgressButtonPressed(void* button_handle, void* usr_data)
 void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Master calibrate button pressed");
   if (isCalibrated()) {
+    playTriumphMelody();
     digitalWrite(LED_CALIBRATED_PIN, HIGH);
     espNowHelper.sendModuleUpdated(hubAddress, true);
   }
@@ -474,4 +480,33 @@ void renderSlaveWaitScreen() {
   oled.println("Waiting for Master");
 
   oled.display();
+}
+
+void playSuccessMelody() {
+  // Play a simple success melody using the buzzer
+  tone(BUZZER_PIN, 1000, 200);  // Play 1000 Hz for 200 ms
+  delay(250);
+  tone(BUZZER_PIN, 1500, 200);  // Play 1500 Hz for 200 ms
+  delay(250);
+  tone(BUZZER_PIN, 2000, 300);  // Play 2000 Hz for 300 ms
+}
+
+void playTriumphMelody() {
+  // Play a more elaborate triumph melody using the buzzer
+  tone(BUZZER_PIN, 1000, 200);
+  delay(250);
+  tone(BUZZER_PIN, 1200, 200);
+  delay(250);
+  tone(BUZZER_PIN, 1500, 300);
+  delay(350);
+  tone(BUZZER_PIN, 2000, 400);
+  delay(450);
+  tone(BUZZER_PIN, 1000, 200);
+  delay(250);
+  tone(BUZZER_PIN, 1200, 200);
+  delay(250);
+  tone(BUZZER_PIN, 1500, 300);
+  delay(350);
+  tone(BUZZER_PIN, 2000, 400);
+  delay(450);
 }
