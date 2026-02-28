@@ -34,9 +34,9 @@ const int TOTAL_ROUNDS = 3;
 const int ROUND_START_COUNTDOWN = 5;
 
 const Orientation roundTargets[TOTAL_ROUNDS] = {
-    {0, 0, 10},    // Round 1
-    {10, 10, 20},  // Round 2
-    {20, 20, 0}    // Round 3
+    {0, 0, 10},  // Round 1
+    {0, 0, 20},  // Round 2
+    {0, 0, 10}   // Round 3
 };
 
 Orientation currentOrientation = {0, 0, 0};
@@ -45,12 +45,28 @@ bool roundCompleted[TOTAL_ROUNDS] = {false, false, false};
 bool isStartingRound = false;
 bool isCalibrationStaged = false;
 
+const int NUM_PLAYERS = 2;  // Master + 1 Slave
+struct PlayerSubmission {
+    uint8_t deviceId;
+    bool success;
+};
+// Track player submissions for the current round
+PlayerSubmission playerSubmissions[NUM_PLAYERS] = {
+    {102, false},  // Master player
+    {112, false}   // Slave player
+};
+
 void setupDisplay();
 void setupMPU();
 void setCurrentOrientation();
 bool orientationMatches(const Orientation& target, int x, int y, int z);
-void onSubmitButtonPressed(void* button_handle, void* usr_data);
-void onMasterCalibrateButtonPressed(void* button_handle, void* usr_data);
+void handleSlaveOrientationMessage(const OrientationSubmissionMessage& message);
+void handleSubmitButtonPressed(void* button_handle, void* usr_data);
+void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data);
+
+void handleMasterOrientationMatched();
+void handleSlaveOrientationMatched(int deviceId);
+
 void updateRoundLEDs();
 void renderCalibrationSetup();
 void renderOrientation();
@@ -58,6 +74,12 @@ void renderRoundStart(int roundNumber);
 void renderCalibrationStaged();
 void startRound(int roundNumber);
 void completeRound();
+
+void submitAndPossiblyCompleteRound(uint8_t deviceId);
+void setPlayerSubmission(uint8_t deviceId);
+bool allPlayersSubmitted();
+void resetPlayerSubmissions();
+bool isCalibrated();
 
 // Returns true if all rounds are completed
 bool isCalibrated() {
@@ -79,11 +101,7 @@ void setup() {
   espNowHelper.sendModuleConnected(hubAddress);
 
   Serial.println("Device role: MASTER");
-  espNowHelper.registerOrientationMessageHandler([](const OrientationSubmissionMessage& message) {
-    Serial.println("Received orientation message from slave module:");
-    Serial.printf("  Roll: %d, Pitch: %d, Yaw: %d\n", message.roll, message.pitch, message.yaw);
-    // Handle received orientation data as needed
-  });
+  espNowHelper.registerOrientationMessageHandler(&handleSlaveOrientationMessage);
 #endif
 
 #ifdef DEVICE_ROLE_SLAVE
@@ -118,12 +136,12 @@ void setup() {
   delay(1000);
 
   Button* btn = new Button(SUBMIT_BUTTON_PIN, false);
-  btn->attachPressDownEventCb(&onSubmitButtonPressed, NULL);
+  btn->attachPressDownEventCb(&handleSubmitButtonPressed, NULL);
 
 #ifdef DEVICE_ROLE_MASTER
   Serial.println("Setting up master calibrate button...");
   Button* masterCalibrateButton = new Button(CALIBRATE_BUTTON_PIN, false);
-  masterCalibrateButton->attachPressDownEventCb(&onMasterCalibrateButtonPressed, NULL);
+  masterCalibrateButton->attachPressDownEventCb(&handleMasterCalibrateButtonPressed, NULL);
 #endif
 
   startRound(currentRound + 1);
@@ -182,7 +200,70 @@ bool orientationMatches(const Orientation& target, int x, int y, int z) {
          abs(target.z - z) <= ORIENTATION_TOLERANCE;
 }
 
-void onSubmitButtonPressed(void* button_handle, void* usr_data) {
+void handleSlaveOrientationMessage(const OrientationSubmissionMessage& message) {
+  Serial.printf("Received orientation message from slave module: %d\n", message.deviceId);
+  Serial.printf("  Roll: %d, Pitch: %d, Yaw: %d\n", message.roll, message.pitch, message.yaw);
+
+  // We are assuming any message from slave is a successful orientation match for the current round
+  // since slave only sends when it matches
+  handleSlaveOrientationMatched(message.deviceId);
+}
+
+void handleMasterOrientationMatched() {
+  Serial.printf("Master reported orientation match for device %d!\n", DEVICE_ID);
+  // Additional logic for when orientation matches can be added here
+  submitAndPossiblyCompleteRound(DEVICE_ID);
+}
+
+void handleSlaveOrientationMatched(int deviceId) {
+  Serial.printf("Slave reported orientation match for device %d!\n", deviceId);
+  // Additional logic for when slave reports orientation match can be added here
+  submitAndPossiblyCompleteRound(deviceId);
+}
+
+void submitAndPossiblyCompleteRound(uint8_t deviceId) {
+  setPlayerSubmission(deviceId);
+
+  if (allPlayersSubmitted()) {
+    Serial.println("All players submitted successfully for this round!");
+    completeRound();
+
+    if (currentRound >= TOTAL_ROUNDS) {
+      isCalibrationStaged = true;
+      renderCalibrationStaged();
+      return;
+    }
+
+    startRound(currentRound + 1);
+  } else {
+    Serial.println("Waiting for all players to submit...");
+  }
+}
+
+void setPlayerSubmission(uint8_t deviceId) {
+  for (int i = 0; i < NUM_PLAYERS; i++) {
+    if (playerSubmissions[i].deviceId == deviceId) {
+      playerSubmissions[i].success = true;
+      break;
+    }
+  }
+}
+bool allPlayersSubmitted() {
+  for (int i = 0; i < NUM_PLAYERS; i++) {
+    if (!playerSubmissions[i].success) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void resetPlayerSubmissions() {
+  for (int i = 0; i < NUM_PLAYERS; i++) {
+    playerSubmissions[i].success = false;
+  }
+}
+
+void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Submit button pressed down");
   if (currentRound >= TOTAL_ROUNDS) {
     return;
@@ -195,26 +276,28 @@ void onSubmitButtonPressed(void* button_handle, void* usr_data) {
 
   const Orientation& target = roundTargets[currentRound];
   if (orientationMatches(target, x, y, z)) {
+#ifdef DEVICE_ROLE_MASTER
+    handleMasterOrientationMatched();
+#endif
 #ifdef DEVICE_ROLE_SLAVE
-    // Send orientation data to master for logging/verification
     espNowHelper.sendOrientationUpdated(orientiationMasterAddress, x, y, z, currentRound + 1, true);
 #endif
 
-    completeRound();
+    // completeRound();
 
-    if (currentRound >= TOTAL_ROUNDS) {
-      isCalibrationStaged = true;
-      renderCalibrationStaged();
-      return;
-    }
+    // if (currentRound >= TOTAL_ROUNDS) {
+    //   isCalibrationStaged = true;
+    //   renderCalibrationStaged();
+    //   return;
+    // }
 
-    startRound(currentRound);
+    // startRound(currentRound);
   } else {
     Serial.printf("Round %d not matched. Try again.\n", currentRound + 1);
   }
 }
 
-void onMasterCalibrateButtonPressed(void* button_handle, void* usr_data) {
+void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Master calibrate button pressed down");
   if (isCalibrated()) {
     digitalWrite(LED_CALIBRATED_PIN, HIGH);
@@ -304,6 +387,8 @@ void startRound(int roundNumber) {
 }
 
 void completeRound() {
+  resetPlayerSubmissions();
+
   roundCompleted[currentRound] = true;
   currentRound++;
   updateRoundLEDs();
