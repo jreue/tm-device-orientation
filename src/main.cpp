@@ -16,6 +16,7 @@ MPU6050 mpu(Wire);
 
 uint8_t hubAddress[] = HUB_MAC_ADDRESS;
 uint8_t orientiationMasterAddress[] = ORIENTATION_MASTER_MAC_ADDRESS;
+uint8_t orientationSlave1Address[] = ORIENTATION_SLAVE_1_MAC_ADDRESS;
 
 EspNowHelper espNowHelper;
 
@@ -61,10 +62,11 @@ void setupDisplay();
 void setupMPU();
 void setCurrentOrientation();
 bool orientationMatches(const Orientation& target, int x, int y, int z);
+
+void handleMasterOrientationProgressMessage(const OrientationProgressMessage& message);
 void handleSlaveOrientationMessage(const OrientationSubmissionMessage& message);
 void handleSubmitButtonPressed(void* button_handle, void* usr_data);
 void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data);
-
 void handleMasterOrientationMatched();
 void handleSlaveOrientationMatched(int deviceId);
 
@@ -101,16 +103,19 @@ void setup() {
   espNowHelper.begin(DEVICE_ID);
 
 #ifdef DEVICE_ROLE_MASTER
+  Serial.println("Device role: MASTER");
   espNowHelper.addPeer(hubAddress);
+  espNowHelper.addPeer(orientationSlave1Address);
   espNowHelper.sendModuleConnected(hubAddress);
 
-  Serial.println("Device role: MASTER");
   espNowHelper.registerOrientationMessageHandler(&handleSlaveOrientationMessage);
 #endif
 
 #ifdef DEVICE_ROLE_SLAVE
   Serial.println("Device role: SLAVE");
   espNowHelper.addPeer(orientiationMasterAddress);
+
+  espNowHelper.registerOrientationProgressMessageHandler(&handleMasterOrientationProgressMessage);
 #endif
 
   Wire.begin();
@@ -217,6 +222,15 @@ void handleSlaveOrientationMessage(const OrientationSubmissionMessage& message) 
   handleSlaveOrientationMatched(message.deviceId);
 }
 
+// Master -> Slave: Master reports round progress and clears isSlaveWaiting to allow slave to start
+// next round
+void handleMasterOrientationProgressMessage(const OrientationProgressMessage& message) {
+  Serial.printf("Received orientation progress message from master: %d%%\n", message.round);
+
+  currentRound = message.round;
+  isSlaveWaiting = false;
+}
+
 void handleMasterOrientationMatched() {
   Serial.printf("Master reported orientation match for device %d!\n", DEVICE_ID);
   // Additional logic for when orientation matches can be added here
@@ -242,6 +256,7 @@ void submitAndPossiblyCompleteRound(uint8_t deviceId) {
       return;
     }
 
+    espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentRound);
     startRound(currentRound + 1);
   } else {
     Serial.println("Waiting for all players to submit...");
