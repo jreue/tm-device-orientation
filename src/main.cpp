@@ -11,7 +11,7 @@
 #include "Wire.h"
 #include "hardware_config.h"
 
-Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+Adafruit_SSD1306 oled(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, &Wire, OLED_RESET);
 MPU6050 mpu(Wire);
 
 uint8_t hubAddress[] = HUB_MAC_ADDRESS;
@@ -107,7 +107,6 @@ void setup() {
   masterCalibrateButton->attachPressDownEventCb(&onMasterCalibrateButtonPressed, NULL);
 #endif
 
-  // Call startRound to display the round loading screen
   startRound(currentRound + 1);
 }
 
@@ -133,7 +132,7 @@ void loop() {
 
 void setupDisplay() {
   Serial.println("Initializing OLED display...");
-  if (!oled.begin(SSD1306_SWITCHCAPVCC, I2C_ADDRESS)) {
+  if (!oled.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDRESS)) {
     Serial.println("  ✗ SSD1306 allocation failed");
     while (true);
   }
@@ -209,10 +208,10 @@ void renderCalibrationSetup() {
   oled.clearDisplay();
   oled.setTextSize(1);
   oled.setTextColor(WHITE);
-  oled.setCursor(0, 10);
-  oled.println("Calibrating Offsets.");
-  oled.setCursor(0, 25);
-  oled.println("Do not move...");
+  oled.setCursor(10, 24);
+  oled.print("< Tuning Offsets >");
+  oled.setCursor(42, 40);
+  oled.print("WAIT...");
   oled.display();
 }
 
@@ -235,18 +234,18 @@ void renderRoundStart(int roundNumber) {
   oled.setTextSize(2);  // Make the "Round X" text bigger
   int roundTextWidth =
       12 * 6;  // Approximate width: 6 pixels per character, "Round X" is 12 characters max
-  oled.setCursor((SCREEN_WIDTH - roundTextWidth) / 2, 10);
+  oled.setCursor((OLED_SCREEN_WIDTH - roundTextWidth) / 2, 10);
   oled.printf("Round %d", roundNumber);
 
   for (int countdown = ROUND_START_COUNTDOWN; countdown > 0; --countdown) {
     oled.setTextSize(4);
-    oled.setCursor((SCREEN_WIDTH - 24) / 2,
-                   (SCREEN_HEIGHT - 32) / 2 + 10);  // Move the number down slightly
+    oled.setCursor((OLED_SCREEN_WIDTH - 24) / 2,
+                   (OLED_SCREEN_HEIGHT - 32) / 2 + 10);  // Move the number down slightly
     oled.printf("%d", countdown);
     oled.display();
     delay(1000);
 
-    oled.fillRect((SCREEN_WIDTH - 24) / 2, (SCREEN_HEIGHT - 32) / 2 + 10, 24, 32,
+    oled.fillRect((OLED_SCREEN_WIDTH - 24) / 2, (OLED_SCREEN_HEIGHT - 32) / 2 + 10, 24, 32,
                   BLACK);  // Clear the number
   }
 
@@ -261,14 +260,14 @@ void renderCalibrationStaged() {
   oled.setTextSize(2);
   int completedTextWidth =
       9 * 12;  // Approximate width: 12 pixels per character, "Completed" is 9 characters
-  oled.setCursor((SCREEN_WIDTH - completedTextWidth) / 2, 10);
+  oled.setCursor((OLED_SCREEN_WIDTH - completedTextWidth) / 2, 10);
   oled.println("Completed");
 
   // Render "Submit Calibration" centered below
   oled.setTextSize(1);
   int submitTextWidth =
       18 * 6;  // Approximate width: 6 pixels per character, "Submit Calibration" is 18 characters
-  oled.setCursor((SCREEN_WIDTH - submitTextWidth) / 2, 40);
+  oled.setCursor((OLED_SCREEN_WIDTH - submitTextWidth) / 2, 40);
   oled.println("Submit Calibration");
 
   oled.display();

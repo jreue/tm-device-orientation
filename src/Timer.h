@@ -15,6 +15,6 @@ class Timer {
   private:
     static constexpr unsigned char timerRadius = 15;
     static constexpr unsigned char margin = 4;
-    static constexpr unsigned int timerX = SCREEN_WIDTH - timerRadius - margin;
-    static constexpr unsigned int timerY = SCREEN_HEIGHT - timerRadius - margin;
+    static constexpr unsigned int timerX = OLED_SCREEN_WIDTH - timerRadius - margin;
+    static constexpr unsigned int timerY = OLED_SCREEN_HEIGHT - timerRadius - margin;
 };

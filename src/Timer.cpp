@@ -34,9 +34,9 @@ void Timer::drawHorizontalTimer(Adafruit_SSD1306& oled, unsigned long startTime,
   if (progress > 1.0f)
     progress = 1.0f;
   int barHeight = 4;  // Height of the timer bar
-  int barWidth = SCREEN_WIDTH;
+  int barWidth = OLED_SCREEN_WIDTH;
   int filledWidth = (int)((1.0f - progress) * barWidth);
-  int barY = SCREEN_HEIGHT - barHeight;
+  int barY = OLED_SCREEN_HEIGHT - barHeight;
   // Draw background bar
   oled.fillRect(0, barY, barWidth, barHeight, SSD1306_BLACK);
   // Draw filled portion
