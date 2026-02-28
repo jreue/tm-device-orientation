@@ -19,10 +19,10 @@
 // ====================
 // LED Configuration
 // ====================
-#define LED_ROUND_1_SUCCESS_PIN GPIO_NUM_18
-#define LED_ROUND_2_SUCCESS_PIN GPIO_NUM_16
-#define LED_ROUND_3_SUCCESS_PIN GPIO_NUM_23
-#define LED_CALIBRATED_PIN GPIO_NUM_19
+#define LED_ROUND_1_SUCCESS_PIN GPIO_NUM_27
+#define LED_ROUND_2_SUCCESS_PIN GPIO_NUM_26
+#define LED_ROUND_3_SUCCESS_PIN GPIO_NUM_25
+#define LED_CALIBRATED_PIN GPIO_NUM_32
 
 // ====================
 // OLED Display Configuration
