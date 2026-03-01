@@ -46,6 +46,7 @@ Orientation currentOrientation = {0, 0, 0};
 int currentRound = 0;
 bool roundCompleted[TOTAL_ROUNDS] = {false, false, false};
 
+bool isInitializing = false;
 bool isRoundStaged = false;
 bool isRoundLoading = false;
 bool isProcessing = false;
@@ -82,6 +83,7 @@ void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data);
 
 void updateRoundLEDs();
 
+void initialize();
 void stageRound();
 void loadRound();
 void completeRound();
@@ -89,6 +91,8 @@ void stageCalibration();
 void completeCalibration();
 void waitForMaster();
 void waitForSlaves();
+
+void transitionToState(const int state);
 
 void submitAndPossiblyCompleteRound(uint8_t deviceId);
 void setPlayerSubmission(uint8_t deviceId);
@@ -105,6 +109,15 @@ bool isCalibrated() {
   }
   return true;
 }
+
+const int STATE_INITIALIZING = 0;
+const int STATE_ROUND_STAGED = 1;
+const int STATE_ROUND_LOADING = 2;
+const int STATE_PROCESSING = 3;
+const int STATE_MASTER_WAITING = 4;
+const int STATE_SLAVE_WAITING = 5;
+const int STATE_CALIBRATION_STAGED = 6;
+const int STATE_CALIBRATION_COMPLETE = 7;
 
 void setup() {
   Serial.begin(115200);
@@ -145,7 +158,7 @@ void setup() {
 
   setupDisplay();
 
-  OLEDController::renderCalibrationSetup(oled);
+  initialize();
 
   delay(1000);
 
@@ -170,7 +183,7 @@ void setup() {
   stageRound();
 #endif
 #ifdef DEVICE_ROLE_SLAVE
-  isSlaveWaiting = true;
+  transitionToState(STATE_SLAVE_WAITING);
   OLEDController::renderSlaveWaitScreen(oled);
 #endif
 }
@@ -178,28 +191,8 @@ void setup() {
 void loop() {
   mpu.update();
 
-  if (isRoundStaged) {
-    return;  // Skip rendering if we are waiting for the next round to start
-  }
-
-  if (isRoundLoading) {
-    return;  // Skip rendering if a round is loading
-  }
-
-  if (isCalibrationStaged) {
-    return;  // Skip rendering if calibration is staged but not completed
-  }
-
-  if (isCalibrationComplete) {
-    return;  // Skip rendering if calibration is completed
-  }
-
-  if (isMasterWaiting) {
-    return;  // Skip rendering if master is waiting for slaves to submit
-  }
-
-  if (isSlaveWaiting) {
-    return;  // Skip rendering if slave is waiting for master
+  if (!isProcessing) {
+    return;  // Skip processing if we are in a non-processing state
   }
 
   if ((millis() - timer) > ORIENTATION_DISPLAY_INTERVAL_MS) {
@@ -234,6 +227,20 @@ void setupMPU() {
   Serial.println("  ✓ MPU6050 initialized.");
 }
 
+void transitionToState(const int state) {
+  Serial.println("-----------------------------------");
+  Serial.printf("➤ ➤ Transitioning to state: %d\n", state);
+  Serial.println("-----------------------------------");
+  isInitializing = state == STATE_INITIALIZING;
+  isProcessing = state == STATE_PROCESSING;
+  isRoundStaged = state == STATE_ROUND_STAGED;
+  isRoundLoading = state == STATE_ROUND_LOADING;
+  isCalibrationStaged = state == STATE_CALIBRATION_STAGED;
+  isCalibrationComplete = state == STATE_CALIBRATION_COMPLETE;
+  isMasterWaiting = state == STATE_MASTER_WAITING;
+  isSlaveWaiting = state == STATE_SLAVE_WAITING;
+}
+
 void setCurrentOrientation() {
   currentOrientation.x = (int)mpu.getAngleX() * -1;
   currentOrientation.y = (int)mpu.getAngleY();
@@ -260,7 +267,7 @@ void handleMasterOrientationProgressMessage(const OrientationProgressMessage& me
   Serial.printf("Received orientation progress message from master: %d%%\n", message.round);
 
   currentRound = message.round;
-  isSlaveWaiting = false;
+  transitionToState(STATE_SLAVE_WAITING);
 
   loadRound();
 }
@@ -316,23 +323,24 @@ void resetPlayerSubmissions() {
   }
 }
 
+void initialize() {
+  transitionToState(STATE_INITIALIZING);
+  OLEDController::renderCalibrationSetup(oled);
+}
+
 void stageRound() {
-  isRoundStaged = true;
+  transitionToState(STATE_ROUND_STAGED);
   OLEDController::renderRoundStaged(oled);
 }
 
 void loadRound() {
-  isRoundStaged = false;
-  isRoundLoading = true;
-  isSlaveWaiting = false;
-  isMasterWaiting = false;
-
+  transitionToState(STATE_ROUND_LOADING);
 #ifdef DEVICE_ROLE_MASTER
   espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentRound);
 #endif
 
   OLEDController::renderRoundLoading(oled, currentRound, ROUND_START_COUNTDOWN);
-  isRoundLoading = false;
+  transitionToState(STATE_PROCESSING);
 }
 
 void completeRound() {
@@ -346,13 +354,12 @@ void completeRound() {
 }
 
 void stageCalibration() {
-  isCalibrationStaged = true;
+  transitionToState(STATE_CALIBRATION_STAGED);
   OLEDController::renderCalibrationStaged(oled);
 }
 
 void completeCalibration() {
-  isCalibrationStaged = false;
-  isCalibrationComplete = true;
+  transitionToState(STATE_CALIBRATION_COMPLETE);
 
   OLEDController::renderCalibrationComplete(oled);
   BuzzerController::playTriumphMelody();
@@ -361,12 +368,12 @@ void completeCalibration() {
 }
 
 void waitForSlaves() {
-  isMasterWaiting = true;
+  transitionToState(STATE_MASTER_WAITING);
   OLEDController::renderMasterWaitScreen(oled);
 }
 
 void waitForMaster() {
-  isSlaveWaiting = true;
+  transitionToState(STATE_SLAVE_WAITING);
   OLEDController::renderSlaveWaitScreen(oled);
 }
 
