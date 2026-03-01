@@ -46,7 +46,10 @@ bool roundCompleted[TOTAL_ROUNDS] = {false, false, false};
 
 bool isRoundStaged = false;
 bool isRoundLoading = false;
+bool isProcessing = false;
 bool isCalibrationStaged = false;
+bool isCalibrationComplete = false;
+bool isMasterWaiting = false;
 bool isSlaveWaiting = false;
 
 const int NUM_PLAYERS = 2;  // Master + 1 Slave
@@ -82,11 +85,17 @@ void renderOrientation();
 void renderRoundStaged();
 void renderRoundLoading();
 void renderCalibrationStaged();
+void renderCalibrationComplete();
 void renderSlaveWaitScreen();
+void renderMasterWaitScreen();
 
 void stageRound();
 void loadRound();
 void completeRound();
+void stageCalibration();
+void completeCalibration();
+void waitForMaster();
+void waitForSlaves();
 
 void submitAndPossiblyCompleteRound(uint8_t deviceId);
 void setPlayerSubmission(uint8_t deviceId);
@@ -140,7 +149,7 @@ void setup() {
   digitalWrite(LED_ROUND_3_SUCCESS_PIN, LOW);
   digitalWrite(LED_CALIBRATED_PIN, LOW);
 
-  digitalWrite(GPIO_NUM_14, LOW);
+  digitalWrite(BUZZER_PIN, LOW);
 
   delay(2000);
 
@@ -189,6 +198,14 @@ void loop() {
 
   if (isCalibrationStaged) {
     return;  // Skip rendering if calibration is staged but not completed
+  }
+
+  if (isCalibrationComplete) {
+    return;  // Skip rendering if calibration is completed
+  }
+
+  if (isMasterWaiting) {
+    return;  // Skip rendering if master is waiting for slaves to submit
   }
 
   if (isSlaveWaiting) {
@@ -277,8 +294,7 @@ void submitAndPossiblyCompleteRound(uint8_t deviceId) {
     completeRound();
 
     if (currentRound >= TOTAL_ROUNDS) {
-      isCalibrationStaged = true;
-      renderCalibrationStaged();
+      stageCalibration();
       return;
     }
 
@@ -320,6 +336,7 @@ void loadRound() {
   isRoundStaged = false;
   isRoundLoading = true;
   isSlaveWaiting = false;
+  isMasterWaiting = false;
 
 #ifdef DEVICE_ROLE_MASTER
   espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentRound);
@@ -339,6 +356,31 @@ void completeRound() {
   playSuccessMelody();
 }
 
+void stageCalibration() {
+  isCalibrationStaged = true;
+  renderCalibrationStaged();
+}
+
+void completeCalibration() {
+  isCalibrationStaged = false;
+  isCalibrationComplete = true;
+
+  renderCalibrationComplete();
+  playTriumphMelody();
+  digitalWrite(LED_CALIBRATED_PIN, HIGH);
+  espNowHelper.sendModuleUpdated(hubAddress, true);
+}
+
+void waitForSlaves() {
+  isMasterWaiting = true;
+  renderMasterWaitScreen();
+}
+
+void waitForMaster() {
+  isSlaveWaiting = true;
+  renderSlaveWaitScreen();
+}
+
 void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Submit button pressed");
   if (currentRound >= TOTAL_ROUNDS) {
@@ -353,12 +395,12 @@ void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
   const Orientation& target = roundTargets[currentRound];
   if (orientationMatches(target, x, y, z)) {
 #ifdef DEVICE_ROLE_MASTER
+    waitForSlaves();
     handleMasterOrientationMatched();
 #endif
 #ifdef DEVICE_ROLE_SLAVE
-    espNowHelper.sendOrientationUpdated(orientiationMasterAddress, x, y, z, currentRound + 1, true);
-    isSlaveWaiting = true;
-    renderSlaveWaitScreen();
+    espNowHelper.sendOrientationUpdated(orientiationMasterAddress, x, y, z, currentRound, true);
+    waitForMaster();
 #endif
   } else {
     Serial.printf("Round %d not matched. Try again.\n", currentRound + 1);
@@ -373,9 +415,7 @@ void handleMasterRoundProgressButtonPressed(void* button_handle, void* usr_data)
 void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Master calibrate button pressed");
   if (isCalibrated()) {
-    playTriumphMelody();
-    digitalWrite(LED_CALIBRATED_PIN, HIGH);
-    espNowHelper.sendModuleUpdated(hubAddress, true);
+    completeCalibration();
   }
 }
 
@@ -469,6 +509,19 @@ void renderCalibrationStaged() {
   oled.display();
 }
 
+void renderCalibrationComplete() {
+  oled.clearDisplay();
+
+  // Render "Calibration Complete" centered
+  oled.setTextSize(1);
+  int completeTextWidth =
+      20 * 6;  // Approximate width: 6 pixels per character, "Calibration Complete" is 20 characters
+  oled.setCursor((OLED_SCREEN_WIDTH - completeTextWidth) / 2, 24);
+  oled.println("Calibration Complete");
+
+  oled.display();
+}
+
 void renderSlaveWaitScreen() {
   oled.clearDisplay();
 
@@ -478,6 +531,19 @@ void renderSlaveWaitScreen() {
       18 * 6;  // Approximate width: 6 pixels per character, "Waiting for Master" is 18 characters
   oled.setCursor((OLED_SCREEN_WIDTH - waitingTextWidth) / 2, 40);
   oled.println("Waiting for Master");
+
+  oled.display();
+}
+
+void renderMasterWaitScreen() {
+  oled.clearDisplay();
+
+  // Render "Waiting for Slaves" centered
+  oled.setTextSize(1);
+  int waitingTextWidth =
+      18 * 6;  // Approximate width: 6 pixels per character, "Waiting for Slaves" is 18 characters
+  oled.setCursor((OLED_SCREEN_WIDTH - waitingTextWidth) / 2, 40);
+  oled.println("Waiting for Slaves");
 
   oled.display();
 }
