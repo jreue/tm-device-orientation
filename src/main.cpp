@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "Button.h"
+#include "BuzzerController.h"
 #include "EspNowHelper.h"
 #include "Timer.h"
 #include "Wire.h"
@@ -353,7 +354,7 @@ void completeRound() {
   currentRound++;
   updateRoundLEDs();
 
-  playSuccessMelody();
+  BuzzerController::playSuccessMelody();
 }
 
 void stageCalibration() {
@@ -366,7 +367,7 @@ void completeCalibration() {
   isCalibrationComplete = true;
 
   renderCalibrationComplete();
-  playTriumphMelody();
+  BuzzerController::playTriumphMelody();
   digitalWrite(LED_CALIBRATED_PIN, HIGH);
   espNowHelper.sendModuleUpdated(hubAddress, true);
 }
@@ -546,33 +547,4 @@ void renderMasterWaitScreen() {
   oled.println("Waiting for Slaves");
 
   oled.display();
-}
-
-void playSuccessMelody() {
-  // Play a simple success melody using the buzzer
-  tone(BUZZER_PIN, 1000, 200);  // Play 1000 Hz for 200 ms
-  delay(250);
-  tone(BUZZER_PIN, 1500, 200);  // Play 1500 Hz for 200 ms
-  delay(250);
-  tone(BUZZER_PIN, 2000, 300);  // Play 2000 Hz for 300 ms
-}
-
-void playTriumphMelody() {
-  // Play a more elaborate triumph melody using the buzzer
-  tone(BUZZER_PIN, 1000, 200);
-  delay(250);
-  tone(BUZZER_PIN, 1200, 200);
-  delay(250);
-  tone(BUZZER_PIN, 1500, 300);
-  delay(350);
-  tone(BUZZER_PIN, 2000, 400);
-  delay(450);
-  tone(BUZZER_PIN, 1000, 200);
-  delay(250);
-  tone(BUZZER_PIN, 1200, 200);
-  delay(250);
-  tone(BUZZER_PIN, 1500, 300);
-  delay(350);
-  tone(BUZZER_PIN, 2000, 400);
-  delay(450);
 }
