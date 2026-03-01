@@ -8,6 +8,7 @@
 #include "Button.h"
 #include "BuzzerController.h"
 #include "EspNowHelper.h"
+#include "OLEDController.h"
 #include "Timer.h"
 #include "Wire.h"
 #include "hardware_config.h"
@@ -81,15 +82,6 @@ void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data);
 
 void updateRoundLEDs();
 
-void renderCalibrationSetup();
-void renderOrientation();
-void renderRoundStaged();
-void renderRoundLoading();
-void renderCalibrationStaged();
-void renderCalibrationComplete();
-void renderSlaveWaitScreen();
-void renderMasterWaitScreen();
-
 void stageRound();
 void loadRound();
 void completeRound();
@@ -103,9 +95,6 @@ void setPlayerSubmission(uint8_t deviceId);
 bool allPlayersSubmitted();
 void resetPlayerSubmissions();
 bool isCalibrated();
-
-void playSuccessMelody();
-void playTriumphMelody();
 
 // Returns true if all rounds are completed
 bool isCalibrated() {
@@ -156,7 +145,7 @@ void setup() {
 
   setupDisplay();
 
-  renderCalibrationSetup();
+  OLEDController::renderCalibrationSetup(oled);
 
   delay(1000);
 
@@ -182,7 +171,7 @@ void setup() {
 #endif
 #ifdef DEVICE_ROLE_SLAVE
   isSlaveWaiting = true;
-  renderSlaveWaitScreen();
+  OLEDController::renderSlaveWaitScreen(oled);
 #endif
 }
 
@@ -215,7 +204,8 @@ void loop() {
 
   if ((millis() - timer) > ORIENTATION_DISPLAY_INTERVAL_MS) {
     setCurrentOrientation();
-    renderOrientation();
+    OLEDController::renderOrientation(oled, currentOrientation.x, currentOrientation.y,
+                                      currentOrientation.z);
 
     updateRoundLEDs();
     timer = millis();
@@ -277,13 +267,11 @@ void handleMasterOrientationProgressMessage(const OrientationProgressMessage& me
 
 void handleMasterOrientationMatched() {
   Serial.printf("Master reported orientation match for device %d!\n", DEVICE_ID);
-  // Additional logic for when orientation matches can be added here
   submitAndPossiblyCompleteRound(DEVICE_ID);
 }
 
 void handleSlaveOrientationMatched(int deviceId) {
   Serial.printf("Slave reported orientation match for device %d!\n", deviceId);
-  // Additional logic for when slave reports orientation match can be added here
   submitAndPossiblyCompleteRound(deviceId);
 }
 
@@ -330,7 +318,7 @@ void resetPlayerSubmissions() {
 
 void stageRound() {
   isRoundStaged = true;
-  renderRoundStaged();
+  OLEDController::renderRoundStaged(oled);
 }
 
 void loadRound() {
@@ -343,7 +331,7 @@ void loadRound() {
   espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentRound);
 #endif
 
-  renderRoundLoading();
+  OLEDController::renderRoundLoading(oled, currentRound, ROUND_START_COUNTDOWN);
   isRoundLoading = false;
 }
 
@@ -359,14 +347,14 @@ void completeRound() {
 
 void stageCalibration() {
   isCalibrationStaged = true;
-  renderCalibrationStaged();
+  OLEDController::renderCalibrationStaged(oled);
 }
 
 void completeCalibration() {
   isCalibrationStaged = false;
   isCalibrationComplete = true;
 
-  renderCalibrationComplete();
+  OLEDController::renderCalibrationComplete(oled);
   BuzzerController::playTriumphMelody();
   digitalWrite(LED_CALIBRATED_PIN, HIGH);
   espNowHelper.sendModuleUpdated(hubAddress, true);
@@ -374,12 +362,12 @@ void completeCalibration() {
 
 void waitForSlaves() {
   isMasterWaiting = true;
-  renderMasterWaitScreen();
+  OLEDController::renderMasterWaitScreen(oled);
 }
 
 void waitForMaster() {
   isSlaveWaiting = true;
-  renderSlaveWaitScreen();
+  OLEDController::renderSlaveWaitScreen(oled);
 }
 
 void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
@@ -424,127 +412,4 @@ void updateRoundLEDs() {
   digitalWrite(LED_ROUND_1_SUCCESS_PIN, roundCompleted[0] ? HIGH : LOW);
   digitalWrite(LED_ROUND_2_SUCCESS_PIN, roundCompleted[1] ? HIGH : LOW);
   digitalWrite(LED_ROUND_3_SUCCESS_PIN, roundCompleted[2] ? HIGH : LOW);
-}
-
-void renderCalibrationSetup() {
-  oled.clearDisplay();
-  oled.setTextSize(1);
-  oled.setTextColor(WHITE);
-  oled.setCursor(10, 24);
-  oled.print("< Tuning Offsets >");
-  oled.setCursor(42, 40);
-  oled.print("WAIT...");
-  oled.display();
-}
-
-void renderOrientation() {
-  oled.clearDisplay();
-  oled.setTextSize(2);
-  oled.setCursor(0, 10);
-  oled.println("Roll: " + String(currentOrientation.x));
-  oled.setCursor(0, 25);
-  oled.println("Pitch: " + String(currentOrientation.y));
-  oled.setCursor(0, 40);
-  oled.println("Yaw: " + String(currentOrientation.z));
-  oled.display();
-}
-
-void renderRoundStaged() {
-  oled.clearDisplay();
-
-  // Render "Start Round" centered
-  oled.setTextSize(1);
-  int waitingTextWidth =
-      11 * 6;  // Approximate width: 6 pixels per character, "Start Round" is 11 characters
-  oled.setCursor((OLED_SCREEN_WIDTH - waitingTextWidth) / 2, 40);
-  oled.println("Start Round");
-
-  oled.display();
-}
-
-void renderRoundLoading() {
-  int roundNumber = currentRound + 1;  // Display rounds starting from 1 instead of 0
-
-  oled.clearDisplay();
-
-  // Center "Round X" text on the horizontal axis
-  oled.setTextSize(2);  // Make the "Round X" text bigger
-  int roundTextWidth =
-      12 * 6;  // Approximate width: 6 pixels per character, "Round X" is 12 characters max
-  oled.setCursor((OLED_SCREEN_WIDTH - roundTextWidth) / 2, 10);
-  oled.printf("Round %d", roundNumber);
-
-  for (int countdown = ROUND_START_COUNTDOWN; countdown > 0; --countdown) {
-    oled.setTextSize(4);
-    oled.setCursor((OLED_SCREEN_WIDTH - 24) / 2,
-                   (OLED_SCREEN_HEIGHT - 32) / 2 + 10);  // Move the number down slightly
-    oled.printf("%d", countdown);
-    oled.display();
-    delay(1000);
-
-    oled.fillRect((OLED_SCREEN_WIDTH - 24) / 2, (OLED_SCREEN_HEIGHT - 32) / 2 + 10, 24, 32,
-                  BLACK);  // Clear the number
-  }
-
-  oled.clearDisplay();
-  oled.display();
-}
-
-void renderCalibrationStaged() {
-  oled.clearDisplay();
-
-  // Render "Completed" centered
-  oled.setTextSize(2);
-  int completedTextWidth =
-      9 * 12;  // Approximate width: 12 pixels per character, "Completed" is 9 characters
-  oled.setCursor((OLED_SCREEN_WIDTH - completedTextWidth) / 2, 10);
-  oled.println("Completed");
-
-  // Render "Submit Calibration" centered below
-  oled.setTextSize(1);
-  int submitTextWidth =
-      18 * 6;  // Approximate width: 6 pixels per character, "Submit Calibration" is 18 characters
-  oled.setCursor((OLED_SCREEN_WIDTH - submitTextWidth) / 2, 40);
-  oled.println("Submit Calibration");
-
-  oled.display();
-}
-
-void renderCalibrationComplete() {
-  oled.clearDisplay();
-
-  // Render "Calibration Complete" centered
-  oled.setTextSize(1);
-  int completeTextWidth =
-      20 * 6;  // Approximate width: 6 pixels per character, "Calibration Complete" is 20 characters
-  oled.setCursor((OLED_SCREEN_WIDTH - completeTextWidth) / 2, 24);
-  oled.println("Calibration Complete");
-
-  oled.display();
-}
-
-void renderSlaveWaitScreen() {
-  oled.clearDisplay();
-
-  // Render "Waiting for Master" centered
-  oled.setTextSize(1);
-  int waitingTextWidth =
-      18 * 6;  // Approximate width: 6 pixels per character, "Waiting for Master" is 18 characters
-  oled.setCursor((OLED_SCREEN_WIDTH - waitingTextWidth) / 2, 40);
-  oled.println("Waiting for Master");
-
-  oled.display();
-}
-
-void renderMasterWaitScreen() {
-  oled.clearDisplay();
-
-  // Render "Waiting for Slaves" centered
-  oled.setTextSize(1);
-  int waitingTextWidth =
-      18 * 6;  // Approximate width: 6 pixels per character, "Waiting for Slaves" is 18 characters
-  oled.setCursor((OLED_SCREEN_WIDTH - waitingTextWidth) / 2, 40);
-  oled.println("Waiting for Slaves");
-
-  oled.display();
 }
