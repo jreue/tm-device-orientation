@@ -41,13 +41,38 @@ static const unsigned char PROGMEM image_passport_left_copy_1_bits[] = {
 
 void OLEDController::renderOrientation(Adafruit_SSD1306& oled, int x, int y, int z) {
   oled.clearDisplay();
+
+  oled.drawBitmap(0, 0, image_passport_left_bits, 6, 46, SSD1306_WHITE);
+  oled.drawBitmap(122, 0, image_passport_left_copy_1_bits, 6, 46, SSD1306_WHITE);
+  oled.drawBitmap(0, 46, image_passport_bottom_bits, 128, 18, SSD1306_WHITE);
+  oled.drawLine(6, 0, 121, 0, SSD1306_WHITE);
+  oled.fillRect(55, 43, 67, 12, SSD1306_BLACK);
+
+  oled.setTextSize(1);
+
+  oled.setCursor(28, 10);
+  oled.print("ROLL");
+
+  oled.setCursor(22, 27);
+  oled.print("PITCH");
+
+  oled.setCursor(34, 44);
+  oled.print("YAW");
+
   oled.setTextSize(2);
-  oled.setCursor(0, 10);
-  oled.println("Roll: " + String(x));
-  oled.setCursor(0, 25);
-  oled.println("Pitch: " + String(y));
-  oled.setCursor(0, 40);
-  oled.println("Yaw: " + String(z));
+
+  int rollWidth = String(x).length() * 12;
+  oled.setCursor(100 - rollWidth, 6);
+  oled.print(String(x));
+
+  int pitchWidth = String(y).length() * 12;
+  oled.setCursor(100 - pitchWidth, 23);
+  oled.print(String(y));
+
+  int yawWidth = String(z).length() * 12;
+  oled.setCursor(100 - yawWidth, 40);
+  oled.print(String(z));
+
   oled.display();
 }
 
@@ -135,19 +160,18 @@ void OLEDController::renderRoundLoading(Adafruit_SSD1306& oled, int currentRound
 
   oled.clearDisplay();
 
-  oled.setTextSize(2);
-  int roundTextWidth = 12 * 6;
-  oled.setCursor((OLED_SCREEN_WIDTH - roundTextWidth) / 2, 10);
-  oled.printf("Phase %d", roundNumber);
+  oled.setCursor(17, 14);
+  oled.print("STARTING PHASE 3");
 
   for (int countdown = countdownSeconds; countdown > 0; --countdown) {
     oled.setTextSize(4);
-    oled.setCursor((OLED_SCREEN_WIDTH - 24) / 2, (OLED_SCREEN_HEIGHT - 32) / 2 + 10);
+    oled.setCursor(54, 27);
     oled.printf("%d", countdown);
     oled.display();
+
     delay(1000);
 
-    oled.fillRect((OLED_SCREEN_WIDTH - 24) / 2, (OLED_SCREEN_HEIGHT - 32) / 2 + 10, 24, 32, BLACK);
+    oled.fillRect(54, 27, 20, 32, BLACK);
   }
 
   oled.clearDisplay();
