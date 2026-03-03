@@ -55,7 +55,7 @@ bool isCalibrationComplete = false;
 bool isMasterWaiting = false;
 bool isSlaveWaiting = false;
 
-const int NUM_PLAYERS = 2;  // Master + 1 Slave
+const int NUM_PLAYERS = 1;  // Master + 1 Slave
 struct PlayerSubmission {
     uint8_t deviceId;
     bool success;
@@ -63,7 +63,7 @@ struct PlayerSubmission {
 // Track player submissions for the current round
 PlayerSubmission playerSubmissions[NUM_PLAYERS] = {
     {102, false},  // Master player
-    {112, false}   // Slave player
+                   //{112, false}   // Slave player
 };
 
 void setupDisplay();
@@ -330,7 +330,7 @@ void initialize() {
 
 void stageRound() {
   transitionToState(STATE_ROUND_STAGED);
-  OLEDController::renderRoundStaged(oled);
+  OLEDController::renderRoundStaged(oled, currentRound, TOTAL_ROUNDS);
 }
 
 void loadRound() {

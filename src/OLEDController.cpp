@@ -2,6 +2,43 @@
 
 #include "hardware_config.h"
 
+static const unsigned char PROGMEM image_operation_warning_bits[] = {
+    0x00, 0x00, 0x01, 0x80, 0x02, 0x40, 0x02, 0x40, 0x04, 0x20, 0x09, 0x90, 0x09, 0x90, 0x11, 0x88,
+    0x11, 0x88, 0x21, 0x84, 0x40, 0x02, 0x41, 0x82, 0x81, 0x81, 0x80, 0x01, 0x7f, 0xfe, 0x00, 0x00};
+static const unsigned char PROGMEM image_music_radio_streaming_bits[] = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x02, 0x00, 0x40, 0x01, 0x00, 0x48, 0x09, 0x00, 0x90,
+    0x84, 0x80, 0xa5, 0xd2, 0x80, 0xa9, 0x4a, 0x80, 0xa5, 0xd2, 0x80, 0x90, 0x84, 0x80, 0x48, 0x09,
+    0x00, 0x40, 0x01, 0x00, 0x20, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+static const unsigned char PROGMEM image_passport_bottom_bits[] = {
+    0x4c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xe1,
+    0x4c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf1,
+    0x6c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf1,
+    0x3c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf1,
+    0x1c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf1,
+    0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf1,
+    0x1c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf1,
+    0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xe1,
+    0x4f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    0x90, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    0xa0, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+    0xa0, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06,
+    0xa0, 0x4f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc,
+    0xa0, 0x5f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf8,
+    0x90, 0x9e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x01, 0x80, 0x03, 0x00,
+    0xcf, 0x33, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0xc0, 0x06, 0x00,
+    0x60, 0x61, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc, 0x00, 0x7f, 0xfc, 0x00,
+    0x3f, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+static const unsigned char PROGMEM image_passport_left_bits[] = {
+    0x3c, 0x40, 0x98, 0xa4, 0xa4, 0x98, 0x80, 0x80, 0xa0, 0x90, 0x88, 0xa4, 0x90, 0x88, 0xa4, 0x90,
+    0x88, 0xa4, 0x90, 0x88, 0xa4, 0x90, 0x88, 0xa4, 0x90, 0x88, 0x84, 0x80, 0x40, 0x60, 0x70, 0x78,
+    0x7c, 0x5c, 0x4c, 0x4c, 0x4c, 0x4c, 0x4c, 0x4c, 0x4c, 0x4c, 0x4c, 0x4c, 0x4c, 0x4c};
+
+static const unsigned char PROGMEM image_passport_left_copy_1_bits[] = {
+    0xf0, 0x08, 0x64, 0x94, 0x94, 0x64, 0x04, 0x04, 0x14, 0x24, 0x44, 0x94, 0x24, 0x44, 0x94, 0x24,
+    0x44, 0x94, 0x24, 0x44, 0x94, 0x24, 0x44, 0x94, 0x24, 0x44, 0x84, 0x04, 0x08, 0x18, 0x38, 0x78,
+    0xf8, 0xe8, 0xc8, 0xc8, 0xc8, 0xc8, 0xc8, 0xc8, 0xc8, 0xc8, 0xc8, 0xc8, 0xc8, 0xc8};
+
 void OLEDController::renderOrientation(Adafruit_SSD1306& oled, int x, int y, int z) {
   oled.clearDisplay();
   oled.setTextSize(2);
@@ -18,82 +55,99 @@ void OLEDController::renderCalibrationSetup(Adafruit_SSD1306& oled) {
   oled.clearDisplay();
   oled.setTextSize(1);
   oled.setTextColor(WHITE);
-  oled.setCursor(10, 24);
-  oled.print("< Tuning Offsets >");
-  oled.setCursor(42, 40);
-  oled.print("WAIT...");
+
+  oled.setCursor(5, 10);
+  oled.print("<< TUNING OFFSETS >>");
+
+  oled.setCursor(11, 45);
+  oled.print("DO NOT MOVE DEVICE");
+
+  oled.drawBitmap(55, 24, image_operation_warning_bits, 16, 16, SSD1306_WHITE);
+
   oled.display();
 }
 
 void OLEDController::renderCalibrationStaged(Adafruit_SSD1306& oled) {
   oled.clearDisplay();
-
-  // Render "Completed" centered
-  oled.setTextSize(2);
-  int completedTextWidth =
-      9 * 12;  // Approximate width: 12 pixels per character, "Completed" is 9 characters
-  oled.setCursor((OLED_SCREEN_WIDTH - completedTextWidth) / 2, 10);
-  oled.println("Completed");
-
-  // Render "Submit Calibration" centered below
   oled.setTextSize(1);
-  int submitTextWidth =
-      18 * 6;  // Approximate width: 6 pixels per character, "Submit Calibration" is 18 characters
-  oled.setCursor((OLED_SCREEN_WIDTH - submitTextWidth) / 2, 40);
-  oled.println("Submit Calibration");
+
+  oled.setCursor(35, 10);
+  oled.print("SUBMIT ALL");
+
+  oled.setCursor(2, 45);
+  oled.print("CALIBRATION SEQUENCES");
+
+  oled.drawBitmap(56, 24, image_music_radio_streaming_bits, 17, 16, SSD1306_WHITE);
 
   oled.display();
 }
 
 void OLEDController::renderCalibrationComplete(Adafruit_SSD1306& oled) {
   oled.clearDisplay();
-
-  // Render "Calibration Complete" centered
   oled.setTextSize(1);
-  int completeTextWidth =
-      20 * 6;  // Approximate width: 6 pixels per character, "Calibration Complete" is 20 characters
-  oled.setCursor((OLED_SCREEN_WIDTH - completeTextWidth) / 2, 24);
-  oled.println("Calibration Complete");
+
+  oled.setCursor(35, 20);
+  oled.print("Submission");
+
+  oled.setCursor(41, 34);
+  oled.print("COMPLETE");
 
   oled.display();
 }
 
-void OLEDController::renderRoundStaged(Adafruit_SSD1306& oled) {
+void OLEDController::renderRoundStaged(Adafruit_SSD1306& oled, int currentRound, int totalRounds) {
   oled.clearDisplay();
-
-  // Render "Start Round" centered
   oled.setTextSize(1);
-  int waitingTextWidth =
-      11 * 6;  // Approximate width: 6 pixels per character, "Start Round" is 11 characters
-  oled.setCursor((OLED_SCREEN_WIDTH - waitingTextWidth) / 2, 40);
-  oled.println("Start Round");
+
+  if (currentRound == 0) {
+    oled.setCursor(20, 20);
+    oled.print("Initiate Planar");
+  } else if (currentRound == totalRounds - 1) {
+    oled.setCursor(20, 20);
+    oled.print("Finalize Phase");
+  } else {
+    oled.setCursor(23, 20);
+    oled.print("Advance Phase");
+  }
+  oled.setCursor(5, 34);
+  oled.print("Calibration Sequence");
+
+  renderRoundProgressIndicators(oled, currentRound, totalRounds);
 
   oled.display();
+}
+
+void OLEDController::renderRoundProgressIndicators(Adafruit_SSD1306& oled, int currentRound,
+                                                   int totalRounds) {
+  for (int i = 0; i < totalRounds; ++i) {
+    int x = 24 + i * 20;
+    if (i < currentRound) {
+      oled.fillCircle(x, 51, 3, SSD1306_WHITE);
+    } else {
+      oled.drawCircle(x, 51, 3, SSD1306_WHITE);
+    }
+  }
 }
 
 void OLEDController::renderRoundLoading(Adafruit_SSD1306& oled, int currentRound,
                                         int countdownSeconds) {
-  int roundNumber = currentRound + 1;  // Display rounds starting from 1 instead of 0
+  int roundNumber = currentRound + 1;
 
   oled.clearDisplay();
 
-  // Center "Round X" text on the horizontal axis
-  oled.setTextSize(2);  // Make the "Round X" text bigger
-  int roundTextWidth =
-      12 * 6;  // Approximate width: 6 pixels per character, "Round X" is 12 characters max
+  oled.setTextSize(2);
+  int roundTextWidth = 12 * 6;
   oled.setCursor((OLED_SCREEN_WIDTH - roundTextWidth) / 2, 10);
-  oled.printf("Round %d", roundNumber);
+  oled.printf("Phase %d", roundNumber);
 
   for (int countdown = countdownSeconds; countdown > 0; --countdown) {
     oled.setTextSize(4);
-    oled.setCursor((OLED_SCREEN_WIDTH - 24) / 2,
-                   (OLED_SCREEN_HEIGHT - 32) / 2 + 10);  // Move the number down slightly
+    oled.setCursor((OLED_SCREEN_WIDTH - 24) / 2, (OLED_SCREEN_HEIGHT - 32) / 2 + 10);
     oled.printf("%d", countdown);
     oled.display();
     delay(1000);
 
-    oled.fillRect((OLED_SCREEN_WIDTH - 24) / 2, (OLED_SCREEN_HEIGHT - 32) / 2 + 10, 24, 32,
-                  BLACK);  // Clear the number
+    oled.fillRect((OLED_SCREEN_WIDTH - 24) / 2, (OLED_SCREEN_HEIGHT - 32) / 2 + 10, 24, 32, BLACK);
   }
 
   oled.clearDisplay();
@@ -102,26 +156,26 @@ void OLEDController::renderRoundLoading(Adafruit_SSD1306& oled, int currentRound
 
 void OLEDController::renderMasterWaitScreen(Adafruit_SSD1306& oled) {
   oled.clearDisplay();
-
-  // Render "Waiting for Slaves" centered
   oled.setTextSize(1);
-  int waitingTextWidth =
-      18 * 6;  // Approximate width: 6 pixels per character, "Waiting for Slaves" is 18 characters
-  oled.setCursor((OLED_SCREEN_WIDTH - waitingTextWidth) / 2, 40);
-  oled.println("Waiting for Slaves");
+
+  oled.setCursor(26, 20);
+  oled.print("Awaiting Peer");
+
+  oled.setCursor(14, 34);
+  oled.print("Device Submission");
 
   oled.display();
 }
 
 void OLEDController::renderSlaveWaitScreen(Adafruit_SSD1306& oled) {
   oled.clearDisplay();
-
-  // Render "Waiting for Master" centered
   oled.setTextSize(1);
-  int waitingTextWidth =
-      18 * 6;  // Approximate width: 6 pixels per character, "Waiting for Master" is 18 characters
-  oled.setCursor((OLED_SCREEN_WIDTH - waitingTextWidth) / 2, 40);
-  oled.println("Waiting for Master");
+
+  oled.setCursor(23, 20);
+  oled.print("Awaiting Phase");
+
+  oled.setCursor(32, 34);
+  oled.print("Initiation");
 
   oled.display();
 }
