@@ -41,14 +41,13 @@ static const unsigned char PROGMEM image_passport_left_copy_1_bits[] = {
 
 void OLEDController::renderOrientation(Adafruit_SSD1306& oled, int x, int y, int z) {
   oled.clearDisplay();
+  oled.setTextSize(1);
 
   oled.drawBitmap(0, 0, image_passport_left_bits, 6, 46, SSD1306_WHITE);
   oled.drawBitmap(122, 0, image_passport_left_copy_1_bits, 6, 46, SSD1306_WHITE);
   oled.drawBitmap(0, 46, image_passport_bottom_bits, 128, 18, SSD1306_WHITE);
   oled.drawLine(6, 0, 121, 0, SSD1306_WHITE);
   oled.fillRect(55, 43, 67, 12, SSD1306_BLACK);
-
-  oled.setTextSize(1);
 
   oled.setCursor(28, 10);
   oled.print("ROLL");
@@ -96,11 +95,11 @@ void OLEDController::renderCalibrationStaged(Adafruit_SSD1306& oled) {
   oled.clearDisplay();
   oled.setTextSize(1);
 
-  oled.setCursor(35, 10);
-  oled.print("SUBMIT ALL");
+  oled.setCursor(29, 10);
+  oled.print("TRANSMIT ALL");
 
-  oled.setCursor(2, 45);
-  oled.print("CALIBRATION SEQUENCES");
+  oled.setCursor(2, 44);
+  oled.print("CALIBRATION SETTINGS");
 
   oled.drawBitmap(56, 24, image_music_radio_streaming_bits, 17, 16, SSD1306_WHITE);
 
@@ -111,8 +110,8 @@ void OLEDController::renderCalibrationComplete(Adafruit_SSD1306& oled) {
   oled.clearDisplay();
   oled.setTextSize(1);
 
-  oled.setCursor(35, 20);
-  oled.print("Submission");
+  oled.setCursor(29, 20);
+  oled.print("TRANSMISSION");
 
   oled.setCursor(41, 34);
   oled.print("COMPLETE");
@@ -125,14 +124,14 @@ void OLEDController::renderRoundStaged(Adafruit_SSD1306& oled, int currentRound,
   oled.setTextSize(1);
 
   if (currentRound == 0) {
-    oled.setCursor(14, 20);
-    oled.print("INITIATING PLANAR");
+    oled.setCursor(20, 20);
+    oled.print("INITIATE PLANAR");
   } else if (currentRound == totalRounds - 1) {
     oled.setCursor(20, 20);
-    oled.print("FINALIZE PHASE");
+    oled.print("FINALIZE PLANAR");
   } else {
     oled.setCursor(23, 20);
-    oled.print("ADVANCE PHASE");
+    oled.print("ADVANCE PLANAR");
   }
   oled.setCursor(5, 34);
   oled.print("CALIBRATION SEQUENCE");
@@ -156,22 +155,26 @@ void OLEDController::renderRoundProgressIndicators(Adafruit_SSD1306& oled, int c
 
 void OLEDController::renderRoundLoading(Adafruit_SSD1306& oled, int currentRound,
                                         int countdownSeconds) {
-  int roundNumber = currentRound + 1;
+  int phaseNumber = currentRound + 1;
 
   oled.clearDisplay();
+  oled.setTextSize(1);
 
-  oled.setCursor(17, 14);
-  oled.print("STARTING PHASE 3");
+  oled.setCursor(5, 6);
+  oled.print("STARTING CALIBRATION");
+
+  oled.setCursor(44, 18);
+  oled.printf("PHASE %d", phaseNumber);
 
   for (int countdown = countdownSeconds; countdown > 0; --countdown) {
     oled.setTextSize(4);
-    oled.setCursor(54, 27);
+    oled.setCursor(54, 30);
     oled.printf("%d", countdown);
     oled.display();
 
     delay(1000);
 
-    oled.fillRect(54, 27, 20, 32, BLACK);
+    oled.fillRect(54, 30, 20, 32, BLACK);
   }
 
   oled.clearDisplay();
