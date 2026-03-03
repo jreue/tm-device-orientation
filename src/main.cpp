@@ -33,18 +33,20 @@ struct Orientation {
     int z;
 };
 
-const int TOTAL_ROUNDS = 3;
+const int TOTAL_ROUNDS = 5;
 const int ROUND_START_COUNTDOWN = 5;
 
 const Orientation roundTargets[TOTAL_ROUNDS] = {
     {0, 0, 10},  // Round 1
     {0, 0, 20},  // Round 2
-    {0, 0, 10}   // Round 3
+    {0, 0, 10},  // Round 3
+    {0, 0, 20},  // Round 4
+    {0, 0, 10}   // Round 5
 };
 
 Orientation currentOrientation = {0, 0, 0};
 int currentRound = 0;
-bool roundCompleted[TOTAL_ROUNDS] = {false, false, false};
+bool roundCompleted[TOTAL_ROUNDS] = {false, false, false, false, false};
 
 bool isInitializing = false;
 bool isRoundStaged = false;
@@ -55,7 +57,7 @@ bool isCalibrationComplete = false;
 bool isMasterWaiting = false;
 bool isSlaveWaiting = false;
 
-const int NUM_PLAYERS = 1;  // Master + 1 Slave
+const int NUM_PLAYERS = 2;  // Master + 1 Slave
 struct PlayerSubmission {
     uint8_t deviceId;
     bool success;
@@ -63,7 +65,7 @@ struct PlayerSubmission {
 // Track player submissions for the current round
 PlayerSubmission playerSubmissions[NUM_PLAYERS] = {
     {102, false},  // Master player
-                   //{112, false}   // Slave player
+    {112, false}   // Slave player
 };
 
 void setupDisplay();

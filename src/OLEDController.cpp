@@ -125,17 +125,17 @@ void OLEDController::renderRoundStaged(Adafruit_SSD1306& oled, int currentRound,
   oled.setTextSize(1);
 
   if (currentRound == 0) {
-    oled.setCursor(20, 20);
-    oled.print("Initiate Planar");
+    oled.setCursor(14, 20);
+    oled.print("INITIATING PLANAR");
   } else if (currentRound == totalRounds - 1) {
     oled.setCursor(20, 20);
-    oled.print("Finalize Phase");
+    oled.print("FINALIZE PHASE");
   } else {
     oled.setCursor(23, 20);
-    oled.print("Advance Phase");
+    oled.print("ADVANCE PHASE");
   }
   oled.setCursor(5, 34);
-  oled.print("Calibration Sequence");
+  oled.print("CALIBRATION SEQUENCE");
 
   renderRoundProgressIndicators(oled, currentRound, totalRounds);
 
@@ -183,10 +183,10 @@ void OLEDController::renderMasterWaitScreen(Adafruit_SSD1306& oled) {
   oled.setTextSize(1);
 
   oled.setCursor(26, 20);
-  oled.print("Awaiting Peer");
+  oled.print("AWAITING PEER");
 
   oled.setCursor(14, 34);
-  oled.print("Device Submission");
+  oled.print("DEVICE SUBMISSION");
 
   oled.display();
 }
@@ -196,10 +196,10 @@ void OLEDController::renderSlaveWaitScreen(Adafruit_SSD1306& oled) {
   oled.setTextSize(1);
 
   oled.setCursor(23, 20);
-  oled.print("Awaiting Phase");
+  oled.print("AWAITING PHASE");
 
   oled.setCursor(32, 34);
-  oled.print("Initiation");
+  oled.print("INITIATION");
 
   oled.display();
 }
