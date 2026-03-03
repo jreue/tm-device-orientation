@@ -381,6 +381,11 @@ void waitForMaster() {
 
 void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Submit button pressed");
+
+  if (!isProcessing) {
+    return;
+  }
+
   if (currentRound >= TOTAL_ROUNDS) {
     return;
   }
@@ -407,11 +412,21 @@ void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
 
 void handleMasterRoundProgressButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Master round progress button pressed");
+
+  if (!isRoundStaged) {
+    return;
+  }
+
   loadRound();
 }
 
 void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Master calibrate button pressed");
+
+  if (!isCalibrationStaged) {
+    return;
+  }
+
   if (isCalibrated()) {
     completeCalibration();
   }
