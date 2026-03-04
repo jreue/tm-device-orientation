@@ -183,8 +183,7 @@ void setup() {
   stageRound();
 #endif
 #ifdef DEVICE_ROLE_SLAVE
-  transitionToState(STATE_SLAVE_WAITING);
-  OLEDController::renderSlaveWaitScreen(oled);
+  waitForMaster();
 #endif
 }
 
