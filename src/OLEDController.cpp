@@ -143,8 +143,9 @@ void OLEDController::renderRoundStaged(Adafruit_SSD1306& oled, int currentRound,
 
 void OLEDController::renderRoundProgressIndicators(Adafruit_SSD1306& oled, int currentRound,
                                                    int totalRounds) {
+  int startX = (128 - (totalRounds - 1) * 20) / 2;
   for (int i = 0; i < totalRounds; ++i) {
-    int x = 24 + i * 20;
+    int x = startX + i * 20;
     if (i < currentRound) {
       oled.fillCircle(x, 51, 3, SSD1306_WHITE);
     } else {

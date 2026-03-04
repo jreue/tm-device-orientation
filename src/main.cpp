@@ -33,20 +33,18 @@ struct Orientation {
     int z;
 };
 
-const int TOTAL_ROUNDS = 5;
+const int TOTAL_ROUNDS = 3;
 const int ROUND_START_COUNTDOWN = 5;
 
 const Orientation roundTargets[TOTAL_ROUNDS] = {
     {0, 0, 10},  // Round 1
     {0, 0, 20},  // Round 2
     {0, 0, 10},  // Round 3
-    {0, 0, 20},  // Round 4
-    {0, 0, 10}   // Round 5
 };
 
 Orientation currentOrientation = {0, 0, 0};
 int currentRound = 0;
-bool roundCompleted[TOTAL_ROUNDS] = {false, false, false, false, false};
+bool roundCompleted[TOTAL_ROUNDS] = {false, false, false};
 
 bool isInitializing = false;
 bool isRoundStaged = false;
