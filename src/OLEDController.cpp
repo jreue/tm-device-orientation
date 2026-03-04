@@ -39,15 +39,23 @@ static const unsigned char PROGMEM image_passport_left_copy_1_bits[] = {
     0x44, 0x94, 0x24, 0x44, 0x94, 0x24, 0x44, 0x94, 0x24, 0x44, 0x84, 0x04, 0x08, 0x18, 0x38, 0x78,
     0xf8, 0xe8, 0xc8, 0xc8, 0xc8, 0xc8, 0xc8, 0xc8, 0xc8, 0xc8, 0xc8, 0xc8, 0xc8, 0xc8};
 
-void OLEDController::renderOrientation(Adafruit_SSD1306& oled, int x, int y, int z) {
-  oled.clearDisplay();
-  oled.setTextSize(1);
+static const unsigned char PROGMEM image_cross_contour_bits[] = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x80, 0x51, 0x40, 0x8a, 0x20, 0x44, 0x40, 0x20, 0x80,
+    0x11, 0x00, 0x20, 0x80, 0x44, 0x40, 0x8a, 0x20, 0x51, 0x40, 0x20, 0x80, 0x00, 0x00, 0x00, 0x00};
 
+void OLEDController::renderOrientationBackground(Adafruit_SSD1306& oled) {
   oled.drawBitmap(0, 0, image_passport_left_bits, 6, 46, SSD1306_WHITE);
   oled.drawBitmap(122, 0, image_passport_left_copy_1_bits, 6, 46, SSD1306_WHITE);
   oled.drawBitmap(0, 46, image_passport_bottom_bits, 128, 18, SSD1306_WHITE);
   oled.drawLine(6, 0, 121, 0, SSD1306_WHITE);
   oled.fillRect(55, 43, 67, 12, SSD1306_BLACK);
+}
+
+void OLEDController::renderOrientation(Adafruit_SSD1306& oled, int x, int y, int z) {
+  oled.clearDisplay();
+  oled.setTextSize(1);
+
+  renderOrientationBackground(oled);
 
   oled.setCursor(28, 10);
   oled.print("ROLL");
@@ -206,4 +214,22 @@ void OLEDController::renderSlaveWaitScreen(Adafruit_SSD1306& oled) {
   oled.print("INITIATION");
 
   oled.display();
+}
+
+void OLEDController::renderInvalidSubmissionScreen(Adafruit_SSD1306& oled) {
+  oled.clearDisplay();
+  oled.setTextSize(1);
+
+  renderOrientationBackground(oled);
+
+  oled.setCursor(11, 10);
+  oled.print("INVALID SUBMISSION");
+
+  oled.drawBitmap(59, 24, image_cross_contour_bits, 11, 16, SSD1306_WHITE);
+
+  oled.display();
+
+  for (int countdown = 4; countdown > 0; --countdown) {
+    delay(1000);
+  }
 }

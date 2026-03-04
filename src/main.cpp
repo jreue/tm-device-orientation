@@ -54,6 +54,7 @@ bool isCalibrationStaged = false;
 bool isCalibrationComplete = false;
 bool isMasterWaiting = false;
 bool isSlaveWaiting = false;
+bool isInvalidSubmission = false;
 
 const int NUM_PLAYERS = 2;  // Master + 1 Slave
 struct PlayerSubmission {
@@ -91,6 +92,7 @@ void stageCalibration();
 void completeCalibration();
 void waitForMaster();
 void waitForSlaves();
+void stageInvalidSubmission();
 
 void transitionToState(const int state);
 
@@ -118,6 +120,7 @@ const int STATE_MASTER_WAITING = 4;
 const int STATE_SLAVE_WAITING = 5;
 const int STATE_CALIBRATION_STAGED = 6;
 const int STATE_CALIBRATION_COMPLETE = 7;
+const int STATE_INVALID_SUBMISSION = 8;
 
 void setup() {
   Serial.begin(115200);
@@ -238,6 +241,7 @@ void transitionToState(const int state) {
   isCalibrationComplete = state == STATE_CALIBRATION_COMPLETE;
   isMasterWaiting = state == STATE_MASTER_WAITING;
   isSlaveWaiting = state == STATE_SLAVE_WAITING;
+  isInvalidSubmission = state == STATE_INVALID_SUBMISSION;
 }
 
 void setCurrentOrientation() {
@@ -266,9 +270,17 @@ void handleMasterOrientationProgressMessage(const OrientationProgressMessage& me
   Serial.printf("Received orientation progress message from master: %d%%\n", message.round);
 
   currentRound = message.round;
-  transitionToState(STATE_SLAVE_WAITING);
 
-  loadRound();
+  if (message.isFinalized) {
+    Serial.println("All Phases are done. Master transmitted final calibration to HUB.");
+    transitionToState(STATE_CALIBRATION_COMPLETE);
+    OLEDController::renderCalibrationComplete(oled);
+    return;
+  } else {
+    transitionToState(STATE_SLAVE_WAITING);
+
+    loadRound();
+  }
 }
 
 void handleMasterOrientationMatched() {
@@ -335,7 +347,7 @@ void stageRound() {
 void loadRound() {
   transitionToState(STATE_ROUND_LOADING);
 #ifdef DEVICE_ROLE_MASTER
-  espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentRound);
+  espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentRound, false);
 #endif
 
   OLEDController::renderRoundLoading(oled, currentRound, ROUND_START_COUNTDOWN);
@@ -359,11 +371,13 @@ void stageCalibration() {
 
 void completeCalibration() {
   transitionToState(STATE_CALIBRATION_COMPLETE);
-
   OLEDController::renderCalibrationComplete(oled);
+
   BuzzerController::playTriumphMelody();
   digitalWrite(LED_CALIBRATED_PIN, HIGH);
+
   espNowHelper.sendModuleUpdated(hubAddress, true);
+  espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentRound, true);
 }
 
 void waitForSlaves() {
@@ -374,6 +388,12 @@ void waitForSlaves() {
 void waitForMaster() {
   transitionToState(STATE_SLAVE_WAITING);
   OLEDController::renderSlaveWaitScreen(oled);
+}
+
+void stageInvalidSubmission() {
+  transitionToState(STATE_INVALID_SUBMISSION);
+  OLEDController::renderInvalidSubmissionScreen(oled);
+  transitionToState(STATE_PROCESSING);
 }
 
 void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
@@ -404,6 +424,7 @@ void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
 #endif
   } else {
     Serial.printf("Round %d not matched. Try again.\n", currentRound + 1);
+    stageInvalidSubmission();
   }
 }
 
