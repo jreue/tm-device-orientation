@@ -68,8 +68,8 @@ void handleSlaveOrientationMessage(const OrientationSubmissionMessage& message);
 void handleMasterOrientationMatched();
 void handleSlaveOrientationMatched(int deviceId);
 
-void handleSubmitButtonPressed(void* button_handle, void* usr_data);
-void handleMasterPhaseProgressButtonPressed(void* button_handle, void* usr_data);
+void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data);
+void handleLoadPhaseButtonPressed(void* button_handle, void* usr_data);
 void handleTransmitButtonPressed(void* button_handle, void* usr_data);
 
 void updatePhaseLEDs();
@@ -161,13 +161,13 @@ void setup() {
 
   delay(1000);
 
-  Button* btn = new Button(SUBMIT_BUTTON_PIN, false);
-  btn->attachPressDownEventCb(&handleSubmitButtonPressed, NULL);
+  Button* btn = new Button(SUBMIT_PHASE_BUTTON_PIN, false);
+  btn->attachPressDownEventCb(&handleSubmitPhaseButtonPressed, NULL);
 
 #ifdef DEVICE_ROLE_MASTER
-  Serial.println("Setting up master phase progress button...");
-  Button* masterPhaseProgressButton = new Button(PHASE_BUTTON_PIN, false);
-  masterPhaseProgressButton->attachPressDownEventCb(&handleMasterPhaseProgressButtonPressed, NULL);
+  Serial.println("Setting up master load phase button...");
+  Button* masterLoadPhaseButton = new Button(LOAD_PHASE_BUTTON_PIN, false);
+  masterLoadPhaseButton->attachPressDownEventCb(&handleLoadPhaseButtonPressed, NULL);
 
   Serial.println("Setting up master transmit button...");
   Button* masterTransmitButton = new Button(TRANSMIT_BUTTON_PIN, false);
@@ -379,8 +379,8 @@ void stageInvalidSubmission() {
   transitionToState(STATE_PROCESSING);
 }
 
-void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
-  Serial.println("Submit button pressed");
+void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data) {
+  Serial.println("Submit phase button pressed");
 
   if (currentState != STATE_PROCESSING) {
     return;
@@ -411,8 +411,8 @@ void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
   }
 }
 
-void handleMasterPhaseProgressButtonPressed(void* button_handle, void* usr_data) {
-  Serial.println("Master phase progress button pressed");
+void handleLoadPhaseButtonPressed(void* button_handle, void* usr_data) {
+  Serial.println("Master load phase button pressed");
 
   if (currentState != STATE_PHASE_STAGED) {
     return;
