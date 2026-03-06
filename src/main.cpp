@@ -46,16 +46,6 @@ Orientation currentOrientation = {0, 0, 0};
 int currentRound = 0;
 bool roundCompleted[TOTAL_ROUNDS] = {false, false, false};
 
-bool isInitializing = false;
-bool isRoundStaged = false;
-bool isRoundLoading = false;
-bool isProcessing = false;
-bool isCalibrationStaged = false;
-bool isCalibrationComplete = false;
-bool isMasterWaiting = false;
-bool isSlaveWaiting = false;
-bool isInvalidSubmission = false;
-
 const int NUM_PLAYERS = 2;  // Master + 1 Slave
 struct PlayerSubmission {
     uint8_t deviceId;
@@ -121,6 +111,8 @@ const int STATE_SLAVE_WAITING = 5;
 const int STATE_CALIBRATION_STAGED = 6;
 const int STATE_CALIBRATION_COMPLETE = 7;
 const int STATE_INVALID_SUBMISSION = 8;
+
+int currentState = STATE_INITIALIZING;
 
 void setup() {
   Serial.begin(115200);
@@ -193,7 +185,7 @@ void setup() {
 void loop() {
   mpu.update();
 
-  if (!isProcessing) {
+  if (currentState != STATE_PROCESSING) {
     return;  // Skip processing if we are in a non-processing state
   }
 
@@ -233,15 +225,7 @@ void transitionToState(const int state) {
   Serial.println("-----------------------------------");
   Serial.printf("➤ ➤ Transitioning to state: %d\n", state);
   Serial.println("-----------------------------------");
-  isInitializing = state == STATE_INITIALIZING;
-  isProcessing = state == STATE_PROCESSING;
-  isRoundStaged = state == STATE_ROUND_STAGED;
-  isRoundLoading = state == STATE_ROUND_LOADING;
-  isCalibrationStaged = state == STATE_CALIBRATION_STAGED;
-  isCalibrationComplete = state == STATE_CALIBRATION_COMPLETE;
-  isMasterWaiting = state == STATE_MASTER_WAITING;
-  isSlaveWaiting = state == STATE_SLAVE_WAITING;
-  isInvalidSubmission = state == STATE_INVALID_SUBMISSION;
+  currentState = state;
 }
 
 void setCurrentOrientation() {
@@ -399,7 +383,7 @@ void stageInvalidSubmission() {
 void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Submit button pressed");
 
-  if (!isProcessing) {
+  if (currentState != STATE_PROCESSING) {
     return;
   }
 
@@ -431,7 +415,7 @@ void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
 void handleMasterRoundProgressButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Master round progress button pressed");
 
-  if (!isRoundStaged) {
+  if (currentState != STATE_ROUND_STAGED) {
     return;
   }
 
@@ -441,7 +425,7 @@ void handleMasterRoundProgressButtonPressed(void* button_handle, void* usr_data)
 void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Master calibrate button pressed");
 
-  if (!isCalibrationStaged) {
+  if (currentState != STATE_CALIBRATION_STAGED) {
     return;
   }
 
