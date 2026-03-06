@@ -127,14 +127,14 @@ void OLEDController::renderCalibrationComplete(Adafruit_SSD1306& oled) {
   oled.display();
 }
 
-void OLEDController::renderRoundStaged(Adafruit_SSD1306& oled, int currentRound, int totalRounds) {
+void OLEDController::renderPhaseStaged(Adafruit_SSD1306& oled, int currentPhase, int totalPhases) {
   oled.clearDisplay();
   oled.setTextSize(1);
 
-  if (currentRound == 0) {
+  if (currentPhase == 0) {
     oled.setCursor(20, 20);
     oled.print("INITIATE PLANAR");
-  } else if (currentRound == totalRounds - 1) {
+  } else if (currentPhase == totalPhases - 1) {
     oled.setCursor(20, 20);
     oled.print("FINALIZE PLANAR");
   } else {
@@ -144,17 +144,17 @@ void OLEDController::renderRoundStaged(Adafruit_SSD1306& oled, int currentRound,
   oled.setCursor(5, 34);
   oled.print("CALIBRATION SEQUENCE");
 
-  renderRoundProgressIndicators(oled, currentRound, totalRounds);
+  renderPhaseProgressIndicators(oled, currentPhase, totalPhases);
 
   oled.display();
 }
 
-void OLEDController::renderRoundProgressIndicators(Adafruit_SSD1306& oled, int currentRound,
-                                                   int totalRounds) {
-  int startX = (128 - (totalRounds - 1) * 20) / 2;
-  for (int i = 0; i < totalRounds; ++i) {
+void OLEDController::renderPhaseProgressIndicators(Adafruit_SSD1306& oled, int currentPhase,
+                                                   int totalPhases) {
+  int startX = (128 - (totalPhases - 1) * 20) / 2;
+  for (int i = 0; i < totalPhases; ++i) {
     int x = startX + i * 20;
-    if (i < currentRound) {
+    if (i < currentPhase) {
       oled.fillCircle(x, 51, 3, SSD1306_WHITE);
     } else {
       oled.drawCircle(x, 51, 3, SSD1306_WHITE);
@@ -162,9 +162,9 @@ void OLEDController::renderRoundProgressIndicators(Adafruit_SSD1306& oled, int c
   }
 }
 
-void OLEDController::renderRoundLoading(Adafruit_SSD1306& oled, int currentRound,
+void OLEDController::renderPhaseLoading(Adafruit_SSD1306& oled, int currentPhase,
                                         int countdownSeconds) {
-  int phaseNumber = currentRound + 1;
+  int phaseNumber = currentPhase + 1;
 
   oled.clearDisplay();
   oled.setTextSize(1);

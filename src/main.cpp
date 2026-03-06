@@ -26,32 +26,32 @@ unsigned long timer = 0;
 const unsigned long ORIENTATION_DISPLAY_INTERVAL_MS = 100;
 const int ORIENTATION_TOLERANCE = 2;  // degrees of tolerance for matching orientation targets
 
-// Round target definitions
+// Phase target definitions
 struct Orientation {
     int x;
     int y;
     int z;
 };
 
-const int TOTAL_ROUNDS = 3;
-const int ROUND_START_COUNTDOWN = 5;
+const int TOTAL_PHASES = 3;
+const int PHASE_START_COUNTDOWN = 5;
 
-const Orientation roundTargets[TOTAL_ROUNDS] = {
-    {0, 0, 10},  // Round 1
-    {0, 0, 20},  // Round 2
-    {0, 0, 10},  // Round 3
+const Orientation phaseTargets[TOTAL_PHASES] = {
+    {0, 0, 10},  // Phase 1
+    {0, 0, 20},  // Phase 2
+    {0, 0, 10},  // Phase 3
 };
 
 Orientation currentOrientation = {0, 0, 0};
-int currentRound = 0;
-bool roundCompleted[TOTAL_ROUNDS] = {false, false, false};
+int currentPhase = 0;
+bool phaseCompleted[TOTAL_PHASES] = {false, false, false};
 
 const int NUM_PLAYERS = 2;  // Master + 1 Slave
 struct PlayerSubmission {
     uint8_t deviceId;
     bool success;
 };
-// Track player submissions for the current round
+// Track player submissions for the current phase
 PlayerSubmission playerSubmissions[NUM_PLAYERS] = {
     {102, false},  // Master player
     {112, false}   // Slave player
@@ -69,15 +69,15 @@ void handleMasterOrientationMatched();
 void handleSlaveOrientationMatched(int deviceId);
 
 void handleSubmitButtonPressed(void* button_handle, void* usr_data);
-void handleMasterRoundProgressButtonPressed(void* button_handle, void* usr_data);
+void handleMasterPhaseProgressButtonPressed(void* button_handle, void* usr_data);
 void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data);
 
-void updateRoundLEDs();
+void updatePhaseLEDs();
 
 void initialize();
-void stageRound();
-void loadRound();
-void completeRound();
+void stagePhase();
+void loadPhase();
+void completePhase();
 void stageCalibration();
 void completeCalibration();
 void waitForMaster();
@@ -86,16 +86,16 @@ void stageInvalidSubmission();
 
 void transitionToState(const int state);
 
-void submitAndPossiblyCompleteRound(uint8_t deviceId);
+void submitAndPossiblyCompletePhase(uint8_t deviceId);
 void setPlayerSubmission(uint8_t deviceId);
 bool allPlayersSubmitted();
 void resetPlayerSubmissions();
 bool isCalibrated();
 
-// Returns true if all rounds are completed
+// Returns true if all phases are completed
 bool isCalibrated() {
-  for (int i = 0; i < TOTAL_ROUNDS; i++) {
-    if (!roundCompleted[i]) {
+  for (int i = 0; i < TOTAL_PHASES; i++) {
+    if (!phaseCompleted[i]) {
       return false;
     }
   }
@@ -103,8 +103,8 @@ bool isCalibrated() {
 }
 
 const int STATE_INITIALIZING = 0;
-const int STATE_ROUND_STAGED = 1;
-const int STATE_ROUND_LOADING = 2;
+const int STATE_PHASE_STAGED = 1;
+const int STATE_PHASE_LOADING = 2;
 const int STATE_PROCESSING = 3;
 const int STATE_MASTER_WAITING = 4;
 const int STATE_SLAVE_WAITING = 5;
@@ -137,14 +137,14 @@ void setup() {
 
   Wire.begin();
 
-  pinMode(LED_ROUND_1_SUCCESS_PIN, OUTPUT);
-  pinMode(LED_ROUND_2_SUCCESS_PIN, OUTPUT);
-  pinMode(LED_ROUND_3_SUCCESS_PIN, OUTPUT);
+  pinMode(LED_PHASE_1_SUCCESS_PIN, OUTPUT);
+  pinMode(LED_PHASE_2_SUCCESS_PIN, OUTPUT);
+  pinMode(LED_PHASE_3_SUCCESS_PIN, OUTPUT);
   pinMode(LED_CALIBRATED_PIN, OUTPUT);
 
-  digitalWrite(LED_ROUND_1_SUCCESS_PIN, LOW);
-  digitalWrite(LED_ROUND_2_SUCCESS_PIN, LOW);
-  digitalWrite(LED_ROUND_3_SUCCESS_PIN, LOW);
+  digitalWrite(LED_PHASE_1_SUCCESS_PIN, LOW);
+  digitalWrite(LED_PHASE_2_SUCCESS_PIN, LOW);
+  digitalWrite(LED_PHASE_3_SUCCESS_PIN, LOW);
   digitalWrite(LED_CALIBRATED_PIN, LOW);
 
   digitalWrite(BUZZER_PIN, LOW);
@@ -165,9 +165,9 @@ void setup() {
   btn->attachPressDownEventCb(&handleSubmitButtonPressed, NULL);
 
 #ifdef DEVICE_ROLE_MASTER
-  Serial.println("Setting up master round progress button...");
-  Button* masterRoundProgressButton = new Button(ROUND_BUTTON_PIN, false);
-  masterRoundProgressButton->attachPressDownEventCb(&handleMasterRoundProgressButtonPressed, NULL);
+  Serial.println("Setting up master phase progress button...");
+  Button* masterPhaseProgressButton = new Button(PHASE_BUTTON_PIN, false);
+  masterPhaseProgressButton->attachPressDownEventCb(&handleMasterPhaseProgressButtonPressed, NULL);
 
   Serial.println("Setting up master calibrate button...");
   Button* masterCalibrateButton = new Button(CALIBRATE_BUTTON_PIN, false);
@@ -175,7 +175,7 @@ void setup() {
 #endif
 
 #ifdef DEVICE_ROLE_MASTER
-  stageRound();
+  stagePhase();
 #endif
 #ifdef DEVICE_ROLE_SLAVE
   waitForMaster();
@@ -194,7 +194,7 @@ void loop() {
     OLEDController::renderOrientation(oled, currentOrientation.x, currentOrientation.y,
                                       currentOrientation.z);
 
-    updateRoundLEDs();
+    updatePhaseLEDs();
     timer = millis();
   }
 }
@@ -243,17 +243,16 @@ void handleSlaveOrientationMessage(const OrientationSubmissionMessage& message) 
   Serial.printf("Received orientation message from slave module: %d\n", message.deviceId);
   Serial.printf("  Roll: %d, Pitch: %d, Yaw: %d\n", message.roll, message.pitch, message.yaw);
 
-  // We are assuming any message from slave is a successful orientation match for the current round
+  // We are assuming any message from slave is a successful orientation match for the current phase
   // since slave only sends when it matches
   handleSlaveOrientationMatched(message.deviceId);
 }
 
-// Master -> Slave: Master reports round progress and clears isSlaveWaiting to allow slave to start
-// next round
+// Master -> Slave: Master reports phase progress
 void handleMasterOrientationProgressMessage(const OrientationProgressMessage& message) {
   Serial.printf("Received orientation progress message from master: %d%%\n", message.round);
 
-  currentRound = message.round;
+  currentPhase = message.round;
 
   if (message.isFinalized) {
     Serial.println("All Phases are done. Master transmitted final calibration to HUB.");
@@ -263,33 +262,33 @@ void handleMasterOrientationProgressMessage(const OrientationProgressMessage& me
   } else {
     transitionToState(STATE_SLAVE_WAITING);
 
-    loadRound();
+    loadPhase();
   }
 }
 
 void handleMasterOrientationMatched() {
   Serial.printf("Master reported orientation match for device %d!\n", DEVICE_ID);
-  submitAndPossiblyCompleteRound(DEVICE_ID);
+  submitAndPossiblyCompletePhase(DEVICE_ID);
 }
 
 void handleSlaveOrientationMatched(int deviceId) {
   Serial.printf("Slave reported orientation match for device %d!\n", deviceId);
-  submitAndPossiblyCompleteRound(deviceId);
+  submitAndPossiblyCompletePhase(deviceId);
 }
 
-void submitAndPossiblyCompleteRound(uint8_t deviceId) {
+void submitAndPossiblyCompletePhase(uint8_t deviceId) {
   setPlayerSubmission(deviceId);
 
   if (allPlayersSubmitted()) {
-    Serial.println("All players submitted successfully for this round!");
-    completeRound();
+    Serial.println("All players submitted successfully for this phase!");
+    completePhase();
 
-    if (currentRound >= TOTAL_ROUNDS) {
+    if (currentPhase >= TOTAL_PHASES) {
       stageCalibration();
       return;
     }
 
-    stageRound();
+    stagePhase();
   } else {
     Serial.println("Waiting for all players to submit...");
   }
@@ -323,27 +322,27 @@ void initialize() {
   OLEDController::renderCalibrationSetup(oled);
 }
 
-void stageRound() {
-  transitionToState(STATE_ROUND_STAGED);
-  OLEDController::renderRoundStaged(oled, currentRound, TOTAL_ROUNDS);
+void stagePhase() {
+  transitionToState(STATE_PHASE_STAGED);
+  OLEDController::renderPhaseStaged(oled, currentPhase, TOTAL_PHASES);
 }
 
-void loadRound() {
-  transitionToState(STATE_ROUND_LOADING);
+void loadPhase() {
+  transitionToState(STATE_PHASE_LOADING);
 #ifdef DEVICE_ROLE_MASTER
-  espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentRound, false);
+  espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentPhase, false);
 #endif
 
-  OLEDController::renderRoundLoading(oled, currentRound, ROUND_START_COUNTDOWN);
+  OLEDController::renderPhaseLoading(oled, currentPhase, PHASE_START_COUNTDOWN);
   transitionToState(STATE_PROCESSING);
 }
 
-void completeRound() {
+void completePhase() {
   resetPlayerSubmissions();
 
-  roundCompleted[currentRound] = true;
-  currentRound++;
-  updateRoundLEDs();
+  phaseCompleted[currentPhase] = true;
+  currentPhase++;
+  updatePhaseLEDs();
 
   BuzzerController::playSuccessMelody();
 }
@@ -361,7 +360,7 @@ void completeCalibration() {
   digitalWrite(LED_CALIBRATED_PIN, HIGH);
 
   espNowHelper.sendModuleUpdated(hubAddress, true);
-  espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentRound, true);
+  espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentPhase, true);
 }
 
 void waitForSlaves() {
@@ -387,7 +386,7 @@ void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
     return;
   }
 
-  if (currentRound >= TOTAL_ROUNDS) {
+  if (currentPhase >= TOTAL_PHASES) {
     return;
   }
 
@@ -396,30 +395,30 @@ void handleSubmitButtonPressed(void* button_handle, void* usr_data) {
   int z = currentOrientation.z;
   Serial.printf("Current orientation: x=%d, y=%d, z=%d\n", x, y, z);
 
-  const Orientation& target = roundTargets[currentRound];
+  const Orientation& target = phaseTargets[currentPhase];
   if (orientationMatches(target, x, y, z)) {
 #ifdef DEVICE_ROLE_MASTER
     waitForSlaves();
     handleMasterOrientationMatched();
 #endif
 #ifdef DEVICE_ROLE_SLAVE
-    espNowHelper.sendOrientationUpdated(orientiationMasterAddress, x, y, z, currentRound, true);
+    espNowHelper.sendOrientationUpdated(orientiationMasterAddress, x, y, z, currentPhase, true);
     waitForMaster();
 #endif
   } else {
-    Serial.printf("Round %d not matched. Try again.\n", currentRound + 1);
+    Serial.printf("Phase %d not matched. Try again.\n", currentPhase + 1);
     stageInvalidSubmission();
   }
 }
 
-void handleMasterRoundProgressButtonPressed(void* button_handle, void* usr_data) {
-  Serial.println("Master round progress button pressed");
+void handleMasterPhaseProgressButtonPressed(void* button_handle, void* usr_data) {
+  Serial.println("Master phase progress button pressed");
 
-  if (currentState != STATE_ROUND_STAGED) {
+  if (currentState != STATE_PHASE_STAGED) {
     return;
   }
 
-  loadRound();
+  loadPhase();
 }
 
 void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data) {
@@ -434,8 +433,8 @@ void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data) {
   }
 }
 
-void updateRoundLEDs() {
-  digitalWrite(LED_ROUND_1_SUCCESS_PIN, roundCompleted[0] ? HIGH : LOW);
-  digitalWrite(LED_ROUND_2_SUCCESS_PIN, roundCompleted[1] ? HIGH : LOW);
-  digitalWrite(LED_ROUND_3_SUCCESS_PIN, roundCompleted[2] ? HIGH : LOW);
+void updatePhaseLEDs() {
+  digitalWrite(LED_PHASE_1_SUCCESS_PIN, phaseCompleted[0] ? HIGH : LOW);
+  digitalWrite(LED_PHASE_2_SUCCESS_PIN, phaseCompleted[1] ? HIGH : LOW);
+  digitalWrite(LED_PHASE_3_SUCCESS_PIN, phaseCompleted[2] ? HIGH : LOW);
 }

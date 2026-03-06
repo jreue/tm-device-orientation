@@ -10,8 +10,8 @@ class OLEDController {
     static void renderCalibrationStaged(Adafruit_SSD1306& oled);
     static void renderCalibrationComplete(Adafruit_SSD1306& oled);
 
-    static void renderRoundStaged(Adafruit_SSD1306& oled, int currentRound, int totalRounds);
-    static void renderRoundLoading(Adafruit_SSD1306& oled, int currentRound, int countdownSeconds);
+    static void renderPhaseStaged(Adafruit_SSD1306& oled, int currentPhase, int totalPhases);
+    static void renderPhaseLoading(Adafruit_SSD1306& oled, int currentPhase, int countdownSeconds);
 
     static void renderMasterWaitScreen(Adafruit_SSD1306& oled);
     static void renderSlaveWaitScreen(Adafruit_SSD1306& oled);
@@ -20,6 +20,6 @@ class OLEDController {
 
   private:
     static void renderOrientationBackground(Adafruit_SSD1306& oled);
-    static void renderRoundProgressIndicators(Adafruit_SSD1306& oled, int currentRound,
-                                              int totalRounds);
+    static void renderPhaseProgressIndicators(Adafruit_SSD1306& oled, int currentPhase,
+                                              int totalPhases);
 };
