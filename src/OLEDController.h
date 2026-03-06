@@ -7,8 +7,9 @@ class OLEDController {
     static void renderOrientation(Adafruit_SSD1306& oled, int x, int y, int z);
 
     static void renderCalibrationSetup(Adafruit_SSD1306& oled);
-    static void renderCalibrationStaged(Adafruit_SSD1306& oled);
-    static void renderCalibrationComplete(Adafruit_SSD1306& oled);
+
+    static void renderTransmitStaged(Adafruit_SSD1306& oled);
+    static void renderTransmitComplete(Adafruit_SSD1306& oled);
 
     static void renderPhaseStaged(Adafruit_SSD1306& oled, int currentPhase, int totalPhases);
     static void renderPhaseLoading(Adafruit_SSD1306& oled, int currentPhase, int countdownSeconds);

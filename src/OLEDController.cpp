@@ -99,7 +99,7 @@ void OLEDController::renderCalibrationSetup(Adafruit_SSD1306& oled) {
   oled.display();
 }
 
-void OLEDController::renderCalibrationStaged(Adafruit_SSD1306& oled) {
+void OLEDController::renderTransmitStaged(Adafruit_SSD1306& oled) {
   oled.clearDisplay();
   oled.setTextSize(1);
 
@@ -114,7 +114,7 @@ void OLEDController::renderCalibrationStaged(Adafruit_SSD1306& oled) {
   oled.display();
 }
 
-void OLEDController::renderCalibrationComplete(Adafruit_SSD1306& oled) {
+void OLEDController::renderTransmitComplete(Adafruit_SSD1306& oled) {
   oled.clearDisplay();
   oled.setTextSize(1);
 

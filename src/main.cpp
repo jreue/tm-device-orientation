@@ -70,7 +70,7 @@ void handleSlaveOrientationMatched(int deviceId);
 
 void handleSubmitButtonPressed(void* button_handle, void* usr_data);
 void handleMasterPhaseProgressButtonPressed(void* button_handle, void* usr_data);
-void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data);
+void handleTransmitButtonPressed(void* button_handle, void* usr_data);
 
 void updatePhaseLEDs();
 
@@ -78,8 +78,8 @@ void initialize();
 void stagePhase();
 void loadPhase();
 void completePhase();
-void stageCalibration();
-void completeCalibration();
+void stageTransmit();
+void completeTransmit();
 void waitForMaster();
 void waitForSlaves();
 void stageInvalidSubmission();
@@ -108,8 +108,8 @@ const int STATE_PHASE_LOADING = 2;
 const int STATE_PROCESSING = 3;
 const int STATE_MASTER_WAITING = 4;
 const int STATE_SLAVE_WAITING = 5;
-const int STATE_CALIBRATION_STAGED = 6;
-const int STATE_CALIBRATION_COMPLETE = 7;
+const int STATE_TRANSMIT_STAGED = 6;
+const int STATE_TRANSMIT_COMPLETE = 7;
 const int STATE_INVALID_SUBMISSION = 8;
 
 int currentState = STATE_INITIALIZING;
@@ -140,12 +140,12 @@ void setup() {
   pinMode(LED_PHASE_1_SUCCESS_PIN, OUTPUT);
   pinMode(LED_PHASE_2_SUCCESS_PIN, OUTPUT);
   pinMode(LED_PHASE_3_SUCCESS_PIN, OUTPUT);
-  pinMode(LED_CALIBRATED_PIN, OUTPUT);
+  pinMode(LED_TRANSMITTED_PIN, OUTPUT);
 
   digitalWrite(LED_PHASE_1_SUCCESS_PIN, LOW);
   digitalWrite(LED_PHASE_2_SUCCESS_PIN, LOW);
   digitalWrite(LED_PHASE_3_SUCCESS_PIN, LOW);
-  digitalWrite(LED_CALIBRATED_PIN, LOW);
+  digitalWrite(LED_TRANSMITTED_PIN, LOW);
 
   digitalWrite(BUZZER_PIN, LOW);
 
@@ -169,9 +169,9 @@ void setup() {
   Button* masterPhaseProgressButton = new Button(PHASE_BUTTON_PIN, false);
   masterPhaseProgressButton->attachPressDownEventCb(&handleMasterPhaseProgressButtonPressed, NULL);
 
-  Serial.println("Setting up master calibrate button...");
-  Button* masterCalibrateButton = new Button(CALIBRATE_BUTTON_PIN, false);
-  masterCalibrateButton->attachPressDownEventCb(&handleMasterCalibrateButtonPressed, NULL);
+  Serial.println("Setting up master transmit button...");
+  Button* masterTransmitButton = new Button(TRANSMIT_BUTTON_PIN, false);
+  masterTransmitButton->attachPressDownEventCb(&handleTransmitButtonPressed, NULL);
 #endif
 
 #ifdef DEVICE_ROLE_MASTER
@@ -256,8 +256,8 @@ void handleMasterOrientationProgressMessage(const OrientationProgressMessage& me
 
   if (message.isFinalized) {
     Serial.println("All Phases are done. Master transmitted final calibration to HUB.");
-    transitionToState(STATE_CALIBRATION_COMPLETE);
-    OLEDController::renderCalibrationComplete(oled);
+    transitionToState(STATE_TRANSMIT_COMPLETE);
+    OLEDController::renderTransmitComplete(oled);
     return;
   } else {
     transitionToState(STATE_SLAVE_WAITING);
@@ -284,7 +284,7 @@ void submitAndPossiblyCompletePhase(uint8_t deviceId) {
     completePhase();
 
     if (currentPhase >= TOTAL_PHASES) {
-      stageCalibration();
+      stageTransmit();
       return;
     }
 
@@ -347,17 +347,17 @@ void completePhase() {
   BuzzerController::playSuccessMelody();
 }
 
-void stageCalibration() {
-  transitionToState(STATE_CALIBRATION_STAGED);
-  OLEDController::renderCalibrationStaged(oled);
+void stageTransmit() {
+  transitionToState(STATE_TRANSMIT_STAGED);
+  OLEDController::renderTransmitStaged(oled);
 }
 
-void completeCalibration() {
-  transitionToState(STATE_CALIBRATION_COMPLETE);
-  OLEDController::renderCalibrationComplete(oled);
+void completeTransmit() {
+  transitionToState(STATE_TRANSMIT_COMPLETE);
+  OLEDController::renderTransmitComplete(oled);
 
   BuzzerController::playTriumphMelody();
-  digitalWrite(LED_CALIBRATED_PIN, HIGH);
+  digitalWrite(LED_TRANSMITTED_PIN, HIGH);
 
   espNowHelper.sendModuleUpdated(hubAddress, true);
   espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentPhase, true);
@@ -421,15 +421,15 @@ void handleMasterPhaseProgressButtonPressed(void* button_handle, void* usr_data)
   loadPhase();
 }
 
-void handleMasterCalibrateButtonPressed(void* button_handle, void* usr_data) {
-  Serial.println("Master calibrate button pressed");
+void handleTransmitButtonPressed(void* button_handle, void* usr_data) {
+  Serial.println("Master transmit button pressed");
 
-  if (currentState != STATE_CALIBRATION_STAGED) {
+  if (currentState != STATE_TRANSMIT_STAGED) {
     return;
   }
 
   if (isCalibrated()) {
-    completeCalibration();
+    completeTransmit();
   }
 }
 
