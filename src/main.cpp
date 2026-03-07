@@ -72,8 +72,6 @@ void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data);
 void handleLoadPhaseButtonPressed(void* button_handle, void* usr_data);
 void handleTransmitButtonPressed(void* button_handle, void* usr_data);
 
-void updatePhaseLEDs();
-
 void loadPhase();
 void completePhase();
 
@@ -88,6 +86,9 @@ void setPlayerSubmission(uint8_t deviceId);
 bool allPlayersSubmitted();
 void resetPlayerSubmissions();
 bool isCalibrated();
+
+void playPhaseCompletionEffects(int completedPhase);
+void playTransmitCompletionEffects();
 
 // Returns true if all phases are completed
 bool isCalibrated() {
@@ -135,6 +136,7 @@ void setup() {
 
   Wire.begin();
 
+#ifdef DEVICE_ROLE_MASTER
   pinMode(LED_PHASE_1_SUCCESS_PIN, OUTPUT);
   pinMode(LED_PHASE_2_SUCCESS_PIN, OUTPUT);
   pinMode(LED_PHASE_3_SUCCESS_PIN, OUTPUT);
@@ -146,6 +148,7 @@ void setup() {
   digitalWrite(LED_TRANSMITTED_PIN, LOW);
 
   digitalWrite(BUZZER_PIN, LOW);
+#endif
 
   delay(2000);
 
@@ -193,7 +196,6 @@ void loop() {
     OLEDController::renderOrientation(oled, currentOrientation.x, currentOrientation.y,
                                       currentOrientation.z);
 
-    updatePhaseLEDs();
     timer = millis();
   }
 }
@@ -249,7 +251,7 @@ const char* getStateName(int state) {
 
 void setCurrentState(const int state) {
   Serial.println("-----------------------------------");
-  Serial.printf("➤ ➤ Transitioning to state: %d %s\n ", state, getStateName(state));
+  Serial.printf("➤ ➤ Transitioning to state: (%d) %s\n ", state, getStateName(state));
   Serial.println("-----------------------------------");
   currentState = state;
 }
@@ -404,23 +406,22 @@ void loadPhase() {
 }
 
 void completePhase() {
-  resetPlayerSubmissions();
+  int completedPhase = currentPhase;
 
+  resetPlayerSubmissions();
   phaseCompleted[currentPhase] = true;
   currentPhase++;
-  updatePhaseLEDs();
 
-  BuzzerController::playSuccessMelody();
+  playPhaseCompletionEffects(completedPhase);
 }
 
 void completeTransmit() {
   transitionTo(STATE_TRANSMIT_COMPLETE);
 
-  BuzzerController::playTriumphMelody();
-  digitalWrite(LED_TRANSMITTED_PIN, HIGH);
-
   espNowHelper.sendModuleUpdated(hubAddress, true);
   espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentPhase, true);
+
+  playTransmitCompletionEffects();
 }
 
 void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data) {
@@ -477,8 +478,25 @@ void handleTransmitButtonPressed(void* button_handle, void* usr_data) {
   }
 }
 
-void updatePhaseLEDs() {
-  digitalWrite(LED_PHASE_1_SUCCESS_PIN, phaseCompleted[0] ? HIGH : LOW);
-  digitalWrite(LED_PHASE_2_SUCCESS_PIN, phaseCompleted[1] ? HIGH : LOW);
-  digitalWrite(LED_PHASE_3_SUCCESS_PIN, phaseCompleted[2] ? HIGH : LOW);
+void playPhaseCompletionEffects(int phase) {
+  switch (phase) {
+    case 0:
+      digitalWrite(LED_PHASE_1_SUCCESS_PIN, HIGH);
+      break;
+    case 1:
+      digitalWrite(LED_PHASE_2_SUCCESS_PIN, HIGH);
+      break;
+    case 2:
+      digitalWrite(LED_PHASE_3_SUCCESS_PIN, HIGH);
+      break;
+    default:
+      break;
+  }
+  BuzzerController::playSuccessMelody();
+}
+
+void playTransmitCompletionEffects() {
+  digitalWrite(LED_TRANSMITTED_PIN, HIGH);
+
+  BuzzerController::playTriumphMelody();
 }
