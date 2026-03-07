@@ -99,6 +99,7 @@ bool isCalibrated() {
   return true;
 }
 
+const int STATE_BOOTING = -1;
 const int STATE_INITIALIZING = 0;
 const int STATE_PHASE_STAGED = 1;
 const int STATE_PHASE_LOADING = 2;
@@ -109,7 +110,7 @@ const int STATE_TRANSMIT_STAGED = 6;
 const int STATE_TRANSMIT_COMPLETE = 7;
 const int STATE_INVALID_SUBMISSION = 8;
 
-int currentState = STATE_INITIALIZING;
+int currentState = STATE_BOOTING;
 
 void setup() {
   Serial.begin(115200);
@@ -150,6 +151,7 @@ void setup() {
 
   setupDisplay();
 
+  transitionTo(STATE_BOOTING);
   transitionTo(STATE_INITIALIZING);
 
   delay(1000);
@@ -220,6 +222,8 @@ void setupMPU() {
 
 const char* getStateName(int state) {
   switch (state) {
+    case STATE_BOOTING:
+      return "STATE_BOOTING";
     case STATE_INITIALIZING:
       return "STATE_INITIALIZING";
     case STATE_PHASE_STAGED:
@@ -252,6 +256,10 @@ void setCurrentState(const int state) {
 
 void transitionTo(const int state) {
   switch (state) {
+    case STATE_BOOTING:
+      setCurrentState(STATE_BOOTING);
+      OLEDController::renderBootScreen(oled);
+      break;
     case STATE_INITIALIZING:
       setCurrentState(STATE_INITIALIZING);
       OLEDController::renderCalibrationSetup(oled);

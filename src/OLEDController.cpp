@@ -51,6 +51,18 @@ void OLEDController::renderOrientationBackground(Adafruit_SSD1306& oled) {
   oled.fillRect(55, 43, 67, 12, SSD1306_BLACK);
 }
 
+void OLEDController::renderBootScreen(Adafruit_SSD1306& oled) {
+  oled.clearDisplay();
+  oled.setTextSize(1);
+  oled.setTextColor(WHITE);
+
+  oled.setCursor(5, 10);
+  oled.print("BOOTING...");
+
+  oled.display();
+  delay(2000);
+}
+
 void OLEDController::renderOrientation(Adafruit_SSD1306& oled, int x, int y, int z) {
   oled.clearDisplay();
   oled.setTextSize(1);
