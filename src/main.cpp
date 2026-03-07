@@ -38,8 +38,8 @@ const int PHASE_START_COUNTDOWN = 5;
 
 const Orientation phaseTargets[TOTAL_PHASES] = {
     {0, 0, 10},  // Phase 1
-    {0, 0, 20},  // Phase 2
-    {0, 0, 10},  // Phase 3
+    {0, 0, 15},  // Phase 2
+    {0, 0, 10}   // Phase 3
 };
 
 Orientation currentOrientation = {0, 0, 0};
@@ -74,17 +74,14 @@ void handleTransmitButtonPressed(void* button_handle, void* usr_data);
 
 void updatePhaseLEDs();
 
-void initialize();
-void stagePhase();
 void loadPhase();
 void completePhase();
-void stageTransmit();
-void completeTransmit();
-void waitForMaster();
-void waitForSlaves();
-void stageInvalidSubmission();
 
-void transitionToState(const int state);
+void completeTransmit();
+
+void setCurrentState(const int state);
+void transitionTo(const int state);
+void transitionToAndThen(const int state, const int nextState);
 
 void submitAndPossiblyCompletePhase(uint8_t deviceId);
 void setPlayerSubmission(uint8_t deviceId);
@@ -153,7 +150,7 @@ void setup() {
 
   setupDisplay();
 
-  initialize();
+  transitionTo(STATE_INITIALIZING);
 
   delay(1000);
 
@@ -175,10 +172,10 @@ void setup() {
 #endif
 
 #ifdef DEVICE_ROLE_MASTER
-  stagePhase();
+  transitionTo(STATE_PHASE_STAGED);
 #endif
 #ifdef DEVICE_ROLE_SLAVE
-  waitForMaster();
+  transitionTo(STATE_SLAVE_WAITING);
 #endif
 }
 
@@ -221,11 +218,83 @@ void setupMPU() {
   Serial.println("  ✓ MPU6050 initialized.");
 }
 
-void transitionToState(const int state) {
+const char* getStateName(int state) {
+  switch (state) {
+    case STATE_INITIALIZING:
+      return "STATE_INITIALIZING";
+    case STATE_PHASE_STAGED:
+      return "STATE_PHASE_STAGED";
+    case STATE_PHASE_LOADING:
+      return "STATE_PHASE_LOADING";
+    case STATE_PROCESSING:
+      return "STATE_PROCESSING";
+    case STATE_MASTER_WAITING:
+      return "STATE_MASTER_WAITING";
+    case STATE_SLAVE_WAITING:
+      return "STATE_SLAVE_WAITING";
+    case STATE_TRANSMIT_STAGED:
+      return "STATE_TRANSMIT_STAGED";
+    case STATE_TRANSMIT_COMPLETE:
+      return "STATE_TRANSMIT_COMPLETE";
+    case STATE_INVALID_SUBMISSION:
+      return "STATE_INVALID_SUBMISSION";
+    default:
+      return "Unknown State";
+  }
+}
+
+void setCurrentState(const int state) {
   Serial.println("-----------------------------------");
-  Serial.printf("➤ ➤ Transitioning to state: %d\n", state);
+  Serial.printf("➤ ➤ Transitioning to state: %d %s\n ", state, getStateName(state));
   Serial.println("-----------------------------------");
   currentState = state;
+}
+
+void transitionTo(const int state) {
+  switch (state) {
+    case STATE_INITIALIZING:
+      setCurrentState(STATE_INITIALIZING);
+      OLEDController::renderCalibrationSetup(oled);
+      break;
+    case STATE_PHASE_STAGED:
+      setCurrentState(STATE_PHASE_STAGED);
+      OLEDController::renderPhaseStaged(oled, currentPhase, TOTAL_PHASES);
+      break;
+    case STATE_PHASE_LOADING:
+      setCurrentState(STATE_PHASE_LOADING);
+      OLEDController::renderPhaseLoading(oled, currentPhase, PHASE_START_COUNTDOWN);
+      break;
+    case STATE_PROCESSING:
+      setCurrentState(STATE_PROCESSING);
+      break;
+    case STATE_MASTER_WAITING:
+      setCurrentState(STATE_MASTER_WAITING);
+      OLEDController::renderMasterWaitScreen(oled);
+      break;
+    case STATE_SLAVE_WAITING:
+      setCurrentState(STATE_SLAVE_WAITING);
+      OLEDController::renderSlaveWaitScreen(oled);
+      break;
+    case STATE_TRANSMIT_STAGED:
+      setCurrentState(STATE_TRANSMIT_STAGED);
+      OLEDController::renderTransmitStaged(oled);
+      break;
+    case STATE_TRANSMIT_COMPLETE:
+      setCurrentState(STATE_TRANSMIT_COMPLETE);
+      OLEDController::renderTransmitComplete(oled);
+      break;
+    case STATE_INVALID_SUBMISSION:
+      setCurrentState(STATE_INVALID_SUBMISSION);
+      OLEDController::renderInvalidSubmissionScreen(oled);
+      break;
+    default:
+      Serial.printf("✗ Unknown state transition requested: %d\n", state);
+  }
+}
+
+void transitionToAndThen(const int state, const int nextState) {
+  transitionTo(state);
+  transitionTo(nextState);
 }
 
 void setCurrentOrientation() {
@@ -256,11 +325,11 @@ void handleMasterOrientationProgressMessage(const OrientationProgressMessage& me
 
   if (message.isFinalized) {
     Serial.println("All Phases are done. Master transmitted final calibration to HUB.");
-    transitionToState(STATE_TRANSMIT_COMPLETE);
-    OLEDController::renderTransmitComplete(oled);
+    transitionTo(STATE_TRANSMIT_COMPLETE);
+
     return;
   } else {
-    transitionToState(STATE_SLAVE_WAITING);
+    setCurrentState(STATE_SLAVE_WAITING);
 
     loadPhase();
   }
@@ -284,11 +353,11 @@ void submitAndPossiblyCompletePhase(uint8_t deviceId) {
     completePhase();
 
     if (currentPhase >= TOTAL_PHASES) {
-      stageTransmit();
+      transitionTo(STATE_TRANSMIT_STAGED);
       return;
     }
 
-    stagePhase();
+    transitionTo(STATE_PHASE_STAGED);
   } else {
     Serial.println("Waiting for all players to submit...");
   }
@@ -302,6 +371,7 @@ void setPlayerSubmission(uint8_t deviceId) {
     }
   }
 }
+
 bool allPlayersSubmitted() {
   for (int i = 0; i < NUM_PLAYERS; i++) {
     if (!playerSubmissions[i].success) {
@@ -317,24 +387,12 @@ void resetPlayerSubmissions() {
   }
 }
 
-void initialize() {
-  transitionToState(STATE_INITIALIZING);
-  OLEDController::renderCalibrationSetup(oled);
-}
-
-void stagePhase() {
-  transitionToState(STATE_PHASE_STAGED);
-  OLEDController::renderPhaseStaged(oled, currentPhase, TOTAL_PHASES);
-}
-
 void loadPhase() {
-  transitionToState(STATE_PHASE_LOADING);
 #ifdef DEVICE_ROLE_MASTER
   espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentPhase, false);
 #endif
 
-  OLEDController::renderPhaseLoading(oled, currentPhase, PHASE_START_COUNTDOWN);
-  transitionToState(STATE_PROCESSING);
+  transitionToAndThen(STATE_PHASE_LOADING, STATE_PROCESSING);
 }
 
 void completePhase() {
@@ -347,36 +405,14 @@ void completePhase() {
   BuzzerController::playSuccessMelody();
 }
 
-void stageTransmit() {
-  transitionToState(STATE_TRANSMIT_STAGED);
-  OLEDController::renderTransmitStaged(oled);
-}
-
 void completeTransmit() {
-  transitionToState(STATE_TRANSMIT_COMPLETE);
-  OLEDController::renderTransmitComplete(oled);
+  transitionTo(STATE_TRANSMIT_COMPLETE);
 
   BuzzerController::playTriumphMelody();
   digitalWrite(LED_TRANSMITTED_PIN, HIGH);
 
   espNowHelper.sendModuleUpdated(hubAddress, true);
   espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentPhase, true);
-}
-
-void waitForSlaves() {
-  transitionToState(STATE_MASTER_WAITING);
-  OLEDController::renderMasterWaitScreen(oled);
-}
-
-void waitForMaster() {
-  transitionToState(STATE_SLAVE_WAITING);
-  OLEDController::renderSlaveWaitScreen(oled);
-}
-
-void stageInvalidSubmission() {
-  transitionToState(STATE_INVALID_SUBMISSION);
-  OLEDController::renderInvalidSubmissionScreen(oled);
-  transitionToState(STATE_PROCESSING);
 }
 
 void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data) {
@@ -398,16 +434,16 @@ void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data) {
   const Orientation& target = phaseTargets[currentPhase];
   if (orientationMatches(target, x, y, z)) {
 #ifdef DEVICE_ROLE_MASTER
-    waitForSlaves();
+    transitionTo(STATE_MASTER_WAITING);
     handleMasterOrientationMatched();
 #endif
 #ifdef DEVICE_ROLE_SLAVE
     espNowHelper.sendOrientationUpdated(orientiationMasterAddress, x, y, z, currentPhase, true);
-    waitForMaster();
+    transitionTo(STATE_SLAVE_WAITING);
 #endif
   } else {
     Serial.printf("Phase %d not matched. Try again.\n", currentPhase + 1);
-    stageInvalidSubmission();
+    transitionToAndThen(STATE_INVALID_SUBMISSION, STATE_PROCESSING);
   }
 }
 
