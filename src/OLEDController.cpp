@@ -95,7 +95,7 @@ void OLEDController::renderOrientation(Adafruit_SSD1306& oled, int x, int y, int
   oled.display();
 }
 
-void OLEDController::renderCalibrationSetup(Adafruit_SSD1306& oled) {
+void OLEDController::renderOffsetsSetup(Adafruit_SSD1306& oled) {
   oled.clearDisplay();
   oled.setTextSize(1);
   oled.setTextColor(WHITE);

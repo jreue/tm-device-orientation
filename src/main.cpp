@@ -100,7 +100,7 @@ bool isCalibrated() {
 }
 
 const int STATE_BOOTING = -1;
-const int STATE_INITIALIZING = 0;
+const int STATE_OFFSETS_SETUP = 0;
 const int STATE_PHASE_STAGED = 1;
 const int STATE_PHASE_LOADING = 2;
 const int STATE_PROCESSING = 3;
@@ -152,7 +152,7 @@ void setup() {
   setupDisplay();
 
   transitionTo(STATE_BOOTING);
-  transitionTo(STATE_INITIALIZING);
+  transitionTo(STATE_OFFSETS_SETUP);
 
   delay(1000);
 
@@ -224,8 +224,8 @@ const char* getStateName(int state) {
   switch (state) {
     case STATE_BOOTING:
       return "STATE_BOOTING";
-    case STATE_INITIALIZING:
-      return "STATE_INITIALIZING";
+    case STATE_OFFSETS_SETUP:
+      return "STATE_OFFSETS_SETUP";
     case STATE_PHASE_STAGED:
       return "STATE_PHASE_STAGED";
     case STATE_PHASE_LOADING:
@@ -260,9 +260,9 @@ void transitionTo(const int state) {
       setCurrentState(STATE_BOOTING);
       OLEDController::renderBootScreen(oled);
       break;
-    case STATE_INITIALIZING:
-      setCurrentState(STATE_INITIALIZING);
-      OLEDController::renderCalibrationSetup(oled);
+    case STATE_OFFSETS_SETUP:
+      setCurrentState(STATE_OFFSETS_SETUP);
+      OLEDController::renderOffsetsSetup(oled);
       break;
     case STATE_PHASE_STAGED:
       setCurrentState(STATE_PHASE_STAGED);
