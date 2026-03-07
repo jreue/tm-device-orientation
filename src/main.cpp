@@ -62,8 +62,9 @@ void setupMPU();
 void setCurrentOrientation();
 bool orientationMatches(const Orientation& target, int x, int y, int z);
 
-void handleMasterOrientationProgressMessage(const OrientationProgressMessage& message);
-void handleSlaveOrientationMessage(const OrientationSubmissionMessage& message);
+void handlePhaseMessageFromMaster(const OrientationPhaseMessage& message);
+void handleTransmissionMessageFromMaster(const OrientationTransmissionMessage& message);
+void handleSubmissionMessageFromSlave(const OrientationSubmissionMessage& message);
 
 void handleMasterOrientationMatched();
 void handleSlaveOrientationMatched(int deviceId);
@@ -73,8 +74,8 @@ void handleLoadPhaseButtonPressed(void* button_handle, void* usr_data);
 void handleTransmitButtonPressed(void* button_handle, void* usr_data);
 
 void loadPhase();
-void completePhase();
 
+void completePhase();
 void completeTransmit();
 
 void setCurrentState(const int state);
@@ -124,14 +125,15 @@ void setup() {
   espNowHelper.addPeer(orientationSlave1Address);
   espNowHelper.sendModuleConnected(hubAddress);
 
-  espNowHelper.registerOrientationMessageHandler(&handleSlaveOrientationMessage);
+  espNowHelper.registerOrientationMessageHandler(&handleSubmissionMessageFromSlave);
 #endif
 
 #ifdef DEVICE_ROLE_SLAVE
   Serial.println("Device role: SLAVE");
   espNowHelper.addPeer(orientiationMasterAddress);
 
-  espNowHelper.registerOrientationProgressMessageHandler(&handleMasterOrientationProgressMessage);
+  espNowHelper.registerOrientationPhaseMessageHandler(&handlePhaseMessageFromMaster);
+  espNowHelper.registerOrientationTransmissionHandler(&handleTransmissionMessageFromMaster);
 #endif
 
   Wire.begin();
@@ -318,7 +320,8 @@ bool orientationMatches(const Orientation& target, int x, int y, int z) {
          abs(target.z - z) <= ORIENTATION_TOLERANCE;
 }
 
-void handleSlaveOrientationMessage(const OrientationSubmissionMessage& message) {
+// Slave -> Master: Slave submitted orientation match for current phase
+void handleSubmissionMessageFromSlave(const OrientationSubmissionMessage& message) {
   Serial.printf("Received orientation message from slave module: %d\n", message.deviceId);
   Serial.printf("  Roll: %d, Pitch: %d, Yaw: %d\n", message.roll, message.pitch, message.yaw);
 
@@ -327,22 +330,22 @@ void handleSlaveOrientationMessage(const OrientationSubmissionMessage& message) 
   handleSlaveOrientationMatched(message.deviceId);
 }
 
-// Master -> Slave: Master reports phase progress
-void handleMasterOrientationProgressMessage(const OrientationProgressMessage& message) {
-  Serial.printf("Received orientation progress message from master: %d%%\n", message.round);
+// Master -> Slave: Master started new phase
+void handlePhaseMessageFromMaster(const OrientationPhaseMessage& message) {
+  Serial.printf("Received orientation progress message from master: %d%%\n", message.phase);
 
-  currentPhase = message.round;
+  currentPhase = message.phase;
 
-  if (message.isFinalized) {
-    Serial.println("All Phases are done. Master transmitted final calibration to HUB.");
-    transitionTo(STATE_TRANSMIT_COMPLETE);
+  setCurrentState(STATE_SLAVE_WAITING);
 
-    return;
-  } else {
-    setCurrentState(STATE_SLAVE_WAITING);
+  loadPhase();
+}
 
-    loadPhase();
-  }
+// Master -> Slave: Master transmitted final orientation submission to hub
+void handleTransmissionMessageFromMaster(const OrientationTransmissionMessage& message) {
+  Serial.println("Received orientation transmission message from master");
+
+  transitionTo(STATE_TRANSMIT_COMPLETE);
 }
 
 void handleMasterOrientationMatched() {
@@ -399,7 +402,7 @@ void resetPlayerSubmissions() {
 
 void loadPhase() {
 #ifdef DEVICE_ROLE_MASTER
-  espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentPhase, false);
+  espNowHelper.sendOrientationPhaseUpdated(orientationSlave1Address, currentPhase);
 #endif
 
   transitionToAndThen(STATE_PHASE_LOADING, STATE_PROCESSING);
@@ -419,7 +422,7 @@ void completeTransmit() {
   transitionTo(STATE_TRANSMIT_COMPLETE);
 
   espNowHelper.sendModuleUpdated(hubAddress, true);
-  espNowHelper.sendOrientationProgressUpdated(orientationSlave1Address, currentPhase, true);
+  espNowHelper.sendOrientationTransmission(orientationSlave1Address, true);
 
   playTransmitCompletionEffects();
 }
@@ -447,7 +450,7 @@ void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data) {
     handleMasterOrientationMatched();
 #endif
 #ifdef DEVICE_ROLE_SLAVE
-    espNowHelper.sendOrientationUpdated(orientiationMasterAddress, x, y, z, currentPhase, true);
+    espNowHelper.sendOrientationSubmission(orientiationMasterAddress, x, y, z, currentPhase, true);
     transitionTo(STATE_SLAVE_WAITING);
 #endif
   } else {
