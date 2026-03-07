@@ -73,8 +73,6 @@ void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data);
 void handleLoadPhaseButtonPressed(void* button_handle, void* usr_data);
 void handleTransmitButtonPressed(void* button_handle, void* usr_data);
 
-void loadPhase();
-
 void completePhase();
 void completeTransmit();
 
@@ -336,9 +334,7 @@ void handlePhaseMessageFromMaster(const OrientationPhaseMessage& message) {
 
   currentPhase = message.phase;
 
-  setCurrentState(STATE_SLAVE_WAITING);
-
-  loadPhase();
+  transitionToAndThen(STATE_PHASE_LOADING, STATE_PROCESSING);
 }
 
 // Master -> Slave: Master transmitted final orientation submission to hub
@@ -400,14 +396,6 @@ void resetPlayerSubmissions() {
   }
 }
 
-void loadPhase() {
-#ifdef DEVICE_ROLE_MASTER
-  espNowHelper.sendOrientationPhaseUpdated(orientationSlave1Address, currentPhase);
-#endif
-
-  transitionToAndThen(STATE_PHASE_LOADING, STATE_PROCESSING);
-}
-
 void completePhase() {
   int completedPhase = currentPhase;
 
@@ -466,7 +454,8 @@ void handleLoadPhaseButtonPressed(void* button_handle, void* usr_data) {
     return;
   }
 
-  loadPhase();
+  espNowHelper.sendOrientationPhaseUpdated(orientationSlave1Address, currentPhase);
+  transitionToAndThen(STATE_PHASE_LOADING, STATE_PROCESSING);
 }
 
 void handleTransmitButtonPressed(void* button_handle, void* usr_data) {
