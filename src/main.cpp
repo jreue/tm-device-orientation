@@ -22,23 +22,25 @@ uint8_t orientationSlave1Address[] = ORIENTATION_SLAVE_1_MAC_ADDRESS;
 
 EspNowHelper espNowHelper;
 
-unsigned long timer = 0;
-const unsigned long ORIENTATION_DISPLAY_INTERVAL_MS = 100;
+unsigned long orientationRefreshTimer = 0;
+const unsigned long ORIENTATION_REFRESH_INTERVAL_MS = 100;
+
 const int ORIENTATION_TOLERANCE = 2;  // degrees of tolerance for matching orientation targets
 
-// Phase target definitions
+const int NUM_PHASES = 3;
+const int NUM_PLAYERS = 2;  // Master + 1 Slave
+
+const int COUNTDOWN_SECONDS_BOOT = 3;
+const int COUNTDOWN_SECONDS_PHASE_START = 5;
+const int COUNTDOWN_SECONDS_INVALID_SUBMISSION = 4;
+
 struct Orientation {
     int x;
     int y;
     int z;
 };
 
-const int TOTAL_PHASES = 3;
-const int COUNTDOWN_SECONDS_BOOT = 3;
-const int COUNTDOWN_SECONDS_PHASE_START = 5;
-const int COUNTDOWN_SECONDS_INVALID_SUBMISSION = 4;
-
-const Orientation phaseTargets[TOTAL_PHASES] = {
+const Orientation phaseTargets[NUM_PHASES] = {
     {0, 0, 10},  // Phase 1
     {0, 0, 15},  // Phase 2
     {0, 0, 10}   // Phase 3
@@ -46,21 +48,24 @@ const Orientation phaseTargets[TOTAL_PHASES] = {
 
 Orientation currentOrientation = {0, 0, 0};
 int currentPhase = 0;
-bool phaseCompleted[TOTAL_PHASES] = {false, false, false};
+bool phaseCompleted[NUM_PHASES] = {false, false, false};
 
-const int NUM_PLAYERS = 2;  // Master + 1 Slave
 struct PlayerSubmission {
     uint8_t deviceId;
     bool success;
 };
-// Track player submissions for the current phase
+
 PlayerSubmission playerSubmissions[NUM_PLAYERS] = {
     {102, false},  // Master player
     {112, false}   // Slave player
 };
 
+void setupESPNow();
 void setupDisplay();
 void setupMPU();
+void setupButtons();
+void setupEffects();
+
 void setCurrentOrientation();
 bool orientationMatches(const Orientation& target, int x, int y, int z);
 
@@ -95,7 +100,7 @@ void playTransmitCompletionEffects();
 
 // Returns true if all phases are completed
 bool isCalibrated() {
-  for (int i = 0; i < TOTAL_PHASES; i++) {
+  for (int i = 0; i < NUM_PHASES; i++) {
     if (!phaseCompleted[i]) {
       return false;
     }
@@ -119,6 +124,52 @@ int currentState = STATE_BOOTING;
 void setup() {
   Serial.begin(115200);
 
+  setupESPNow();
+
+  Wire.begin();
+  delay(2000);
+
+  setupEffects();
+
+  setupDisplay();
+  setupMPU();
+
+  transitionTo(STATE_BOOTING);
+  transitionTo(STATE_OFFSETS_SETUP);
+
+  delay(1000);
+
+  calculateOffsets();
+
+  delay(1000);
+
+  setupButtons();
+
+#ifdef DEVICE_ROLE_MASTER
+  transitionTo(STATE_PHASE_STAGED);
+#endif
+#ifdef DEVICE_ROLE_SLAVE
+  transitionTo(STATE_SLAVE_WAITING);
+#endif
+}
+
+void loop() {
+  mpu.update();
+
+  if (currentState != STATE_PROCESSING) {
+    return;  // Skip processing if we are in a non-processing state
+  }
+
+  if ((millis() - orientationRefreshTimer) > ORIENTATION_REFRESH_INTERVAL_MS) {
+    setCurrentOrientation();
+    OLEDController::renderOrientation(oled, currentOrientation.x, currentOrientation.y,
+                                      currentOrientation.z);
+
+    orientationRefreshTimer = millis();
+  }
+}
+
+void setupESPNow() {
   espNowHelper.begin(DEVICE_ID);
 
 #ifdef DEVICE_ROLE_MASTER
@@ -137,10 +188,24 @@ void setup() {
   espNowHelper.registerOrientationPhaseMessageHandler(&handlePhaseMessageFromMaster);
   espNowHelper.registerOrientationTransmissionHandler(&handleTransmissionMessageFromMaster);
 #endif
+}
 
-  Wire.begin();
-  delay(2000);
+void setupButtons() {
+  Button* submitButton = new Button(SUBMIT_PHASE_BUTTON_PIN, false);
+  submitButton->attachPressDownEventCb(&handleSubmitPhaseButtonPressed, NULL);
 
+#ifdef DEVICE_ROLE_MASTER
+  Serial.println("Setting up master load phase button...");
+  Button* masterLoadPhaseButton = new Button(LOAD_PHASE_BUTTON_PIN, false);
+  masterLoadPhaseButton->attachPressDownEventCb(&handleLoadPhaseButtonPressed, NULL);
+
+  Serial.println("Setting up master transmit button...");
+  Button* masterTransmitButton = new Button(TRANSMIT_BUTTON_PIN, false);
+  masterTransmitButton->attachPressDownEventCb(&handleTransmitButtonPressed, NULL);
+#endif
+}
+
+void setupEffects() {
 #ifdef DEVICE_ROLE_MASTER
   pinMode(LED_PHASE_1_SUCCESS_PIN, OUTPUT);
   pinMode(LED_PHASE_2_SUCCESS_PIN, OUTPUT);
@@ -154,54 +219,6 @@ void setup() {
 
   digitalWrite(BUZZER_PIN, LOW);
 #endif
-
-  setupDisplay();
-  setupMPU();
-
-  transitionTo(STATE_BOOTING);
-  transitionTo(STATE_OFFSETS_SETUP);
-
-  delay(1000);
-
-  calculateOffsets();
-
-  delay(1000);
-
-  Button* btn = new Button(SUBMIT_PHASE_BUTTON_PIN, false);
-  btn->attachPressDownEventCb(&handleSubmitPhaseButtonPressed, NULL);
-
-#ifdef DEVICE_ROLE_MASTER
-  Serial.println("Setting up master load phase button...");
-  Button* masterLoadPhaseButton = new Button(LOAD_PHASE_BUTTON_PIN, false);
-  masterLoadPhaseButton->attachPressDownEventCb(&handleLoadPhaseButtonPressed, NULL);
-
-  Serial.println("Setting up master transmit button...");
-  Button* masterTransmitButton = new Button(TRANSMIT_BUTTON_PIN, false);
-  masterTransmitButton->attachPressDownEventCb(&handleTransmitButtonPressed, NULL);
-#endif
-
-#ifdef DEVICE_ROLE_MASTER
-  transitionTo(STATE_PHASE_STAGED);
-#endif
-#ifdef DEVICE_ROLE_SLAVE
-  transitionTo(STATE_SLAVE_WAITING);
-#endif
-}
-
-void loop() {
-  mpu.update();
-
-  if (currentState != STATE_PROCESSING) {
-    return;  // Skip processing if we are in a non-processing state
-  }
-
-  if ((millis() - timer) > ORIENTATION_DISPLAY_INTERVAL_MS) {
-    setCurrentOrientation();
-    OLEDController::renderOrientation(oled, currentOrientation.x, currentOrientation.y,
-                                      currentOrientation.z);
-
-    timer = millis();
-  }
 }
 
 void setupDisplay() {
@@ -275,7 +292,7 @@ void transitionTo(const int state) {
       break;
     case STATE_PHASE_STAGED:
       setCurrentState(STATE_PHASE_STAGED);
-      OLEDController::renderPhaseStaged(oled, currentPhase, TOTAL_PHASES);
+      OLEDController::renderPhaseStaged(oled, currentPhase, NUM_PHASES);
       break;
     case STATE_PHASE_LOADING:
       setCurrentState(STATE_PHASE_LOADING);
@@ -368,7 +385,7 @@ void submitAndPossiblyCompletePhase(uint8_t deviceId) {
     Serial.println("All players submitted successfully for this phase!");
     completePhase();
 
-    if (currentPhase >= TOTAL_PHASES) {
+    if (currentPhase >= NUM_PHASES) {
       transitionTo(STATE_TRANSMIT_STAGED);
       return;
     }
@@ -429,7 +446,7 @@ void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data) {
     return;
   }
 
-  if (currentPhase >= TOTAL_PHASES) {
+  if (currentPhase >= NUM_PHASES) {
     return;
   }
 
