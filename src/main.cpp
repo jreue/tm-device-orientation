@@ -184,6 +184,26 @@ void setupESPNow() {
 #endif
 }
 
+void setupDisplay() {
+  Serial.println("Initializing OLED display...");
+  if (!oled.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDRESS)) {
+    Serial.println("  ✗ SSD1306 allocation failed");
+    while (true);
+  }
+  Serial.println("  ✓ OLED display initialized.");
+}
+
+void setupMPU() {
+  Serial.println("Initializing MPU6050...");
+
+  byte status = mpu.begin();
+  Serial.printf("  MPU6050 status: %d\n", status);
+  while (status != 0) {
+  }  // stop everything if could not connect to MPU6050
+
+  Serial.println("  ✓ MPU6050 initialized.");
+}
+
 void setupButtons() {
   Button* submitButton = new Button(SUBMIT_PHASE_BUTTON_PIN, false);
   submitButton->attachPressDownEventCb(&handleSubmitPhaseButtonPressed, NULL);
@@ -213,26 +233,6 @@ void setupEffects() {
 
   digitalWrite(BUZZER_PIN, LOW);
 #endif
-}
-
-void setupDisplay() {
-  Serial.println("Initializing OLED display...");
-  if (!oled.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDRESS)) {
-    Serial.println("  ✗ SSD1306 allocation failed");
-    while (true);
-  }
-  Serial.println("  ✓ OLED display initialized.");
-}
-
-void setupMPU() {
-  Serial.println("Initializing MPU6050...");
-
-  byte status = mpu.begin();
-  Serial.printf("  MPU6050 status: %d\n", status);
-  while (status != 0) {
-  }  // stop everything if could not connect to MPU6050
-
-  Serial.println("  ✓ MPU6050 initialized.");
 }
 
 void calculateOffsets() {
