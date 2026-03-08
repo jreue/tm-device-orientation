@@ -124,26 +124,20 @@ int currentState = STATE_BOOTING;
 void setup() {
   Serial.begin(115200);
 
-  setupESPNow();
-
   Wire.begin();
   delay(2000);
 
-  setupEffects();
-
+  setupESPNow();
   setupDisplay();
   setupMPU();
 
   transitionTo(STATE_BOOTING);
   transitionTo(STATE_OFFSETS_SETUP);
 
-  delay(1000);
-
   calculateOffsets();
 
-  delay(1000);
-
   setupButtons();
+  setupEffects();
 
 #ifdef DEVICE_ROLE_MASTER
   transitionTo(STATE_PHASE_STAGED);
@@ -243,7 +237,9 @@ void setupMPU() {
 
 void calculateOffsets() {
   Serial.println("Calculating MPU6050 offsets, do not move MPU6050");
+  // delay(1000);
   mpu.calcOffsets(CALCULATE_OFFSET_GYRO, CALCULATE_OFFSET_ACCEL);
+  delay(1000);
 }
 
 const char* getStateName(int state) {
