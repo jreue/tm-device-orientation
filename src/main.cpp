@@ -66,8 +66,7 @@ void setupMPU();
 void setupButtons();
 void setupEffects();
 
-void setCurrentOrientation();
-bool orientationMatches(const Orientation& target, int x, int y, int z);
+void calculateOffsets();
 
 void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data);
 void handleLoadPhaseButtonPressed(void* button_handle, void* usr_data);
@@ -77,26 +76,31 @@ void handleSubmissionMessageFromSlave(const OrientationSubmissionMessage& messag
 void handlePhaseMessageFromMaster(const OrientationPhaseMessage& message);
 void handleTransmissionMessageFromMaster(const OrientationTransmissionMessage& message);
 
-void handleMasterOrientationMatched();
-void handleSlaveOrientationMatched(int deviceId);
+const char* getStateName(int state);
+void setCurrentState(const int state);
+
+void transitionTo(const int state);
+void transitionToAndThen(const int state, const int nextState);
+
+void setCurrentOrientation();
+bool orientationMatches(const Orientation& target, int x, int y, int z);
+
+void processOrientationMatch(uint16_t x, uint16_t y, uint16_t z);
+void processOrientationMismatch();
+void submitAndPossiblyCompletePhase(uint8_t deviceId);
+
+void setPlayerSubmission(uint8_t deviceId);
+bool allPlayersSubmitted();
+void processAllPlayersSubmitted();
+void resetPlayerSubmissions();
 
 void completePhase();
 void completeTransmit();
 
-void calculateOffsets();
-
-void setCurrentState(const int state);
-void transitionTo(const int state);
-void transitionToAndThen(const int state, const int nextState);
-
-void submitAndPossiblyCompletePhase(uint8_t deviceId);
-void setPlayerSubmission(uint8_t deviceId);
-bool allPlayersSubmitted();
-void resetPlayerSubmissions();
-bool isCalibrated();
-
 void playPhaseCompletionEffects(int completedPhase);
 void playTransmitCompletionEffects();
+
+bool isCalibrated();
 
 // Returns true if all phases are completed
 bool isCalibrated() {
@@ -260,17 +264,9 @@ void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data) {
 
   const Orientation& target = phaseTargets[currentPhase];
   if (orientationMatches(target, x, y, z)) {
-#ifdef DEVICE_ROLE_MASTER
-    transitionTo(STATE_MASTER_WAITING);
-    handleMasterOrientationMatched();
-#endif
-#ifdef DEVICE_ROLE_SLAVE
-    espNowHelper.sendOrientationSubmission(orientiationMasterAddress, x, y, z, currentPhase, true);
-    transitionTo(STATE_SLAVE_WAITING);
-#endif
+    processOrientationMatch(x, y, z);
   } else {
-    Serial.printf("Phase %d not matched. Try again.\n", currentPhase + 1);
-    transitionToAndThen(STATE_INVALID_SUBMISSION, STATE_PROCESSING);
+    processOrientationMismatch();
   }
 }
 
@@ -302,7 +298,7 @@ void handleSubmissionMessageFromSlave(const OrientationSubmissionMessage& messag
   Serial.printf("Received orientation message from slave module: %d\n", message.deviceId);
   Serial.printf("  Roll: %d, Pitch: %d, Yaw: %d\n", message.roll, message.pitch, message.yaw);
 
-  handleSlaveOrientationMatched(message.deviceId);
+  submitAndPossiblyCompletePhase(message.deviceId);
 }
 
 // Master -> Slave: Master started new phase
@@ -417,29 +413,28 @@ bool orientationMatches(const Orientation& target, int x, int y, int z) {
          abs(target.z - z) <= ORIENTATION_TOLERANCE;
 }
 
-void handleMasterOrientationMatched() {
-  Serial.printf("Master reported orientation match for device %d!\n", DEVICE_ID);
+void processOrientationMatch(uint16_t x, uint16_t y, uint16_t z) {
+#ifdef DEVICE_ROLE_MASTER
+  transitionTo(STATE_MASTER_WAITING);
+
   submitAndPossiblyCompletePhase(DEVICE_ID);
+#endif
+#ifdef DEVICE_ROLE_SLAVE
+  espNowHelper.sendOrientationSubmission(orientiationMasterAddress, x, y, z, currentPhase, true);
+  transitionTo(STATE_SLAVE_WAITING);
+#endif
 }
 
-void handleSlaveOrientationMatched(int deviceId) {
-  Serial.printf("Slave reported orientation match for device %d!\n", deviceId);
-  submitAndPossiblyCompletePhase(deviceId);
+void processOrientationMismatch() {
+  Serial.printf("Phase %d not matched. Try again.\n", currentPhase + 1);
+  transitionToAndThen(STATE_INVALID_SUBMISSION, STATE_PROCESSING);
 }
 
 void submitAndPossiblyCompletePhase(uint8_t deviceId) {
   setPlayerSubmission(deviceId);
 
   if (allPlayersSubmitted()) {
-    Serial.println("All players submitted successfully for this phase!");
-    completePhase();
-
-    if (currentPhase >= NUM_PHASES) {
-      transitionTo(STATE_TRANSMIT_STAGED);
-      return;
-    }
-
-    transitionTo(STATE_PHASE_STAGED);
+    processAllPlayersSubmitted();
   } else {
     Serial.println("Waiting for all players to submit...");
   }
@@ -466,6 +461,17 @@ bool allPlayersSubmitted() {
 void resetPlayerSubmissions() {
   for (int i = 0; i < NUM_PLAYERS; i++) {
     playerSubmissions[i].success = false;
+  }
+}
+
+void processAllPlayersSubmitted() {
+  Serial.println("All players submitted successfully for this phase!");
+  completePhase();
+
+  if (currentPhase < NUM_PHASES) {
+    transitionTo(STATE_PHASE_STAGED);
+  } else {
+    transitionTo(STATE_TRANSMIT_STAGED);
   }
 }
 
