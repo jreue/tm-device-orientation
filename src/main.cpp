@@ -30,7 +30,7 @@ const int ORIENTATION_TOLERANCE = 2;  // degrees of tolerance for matching orien
 const int NUM_PHASES = 3;
 const int NUM_PLAYERS = 2;  // Master + 1 Slave
 
-const int COUNTDOWN_SECONDS_BOOT = 3;
+const int COUNTDOWN_SECONDS_BOOT = 5;
 const int COUNTDOWN_SECONDS_PHASE_START = 5;
 const int COUNTDOWN_SECONDS_INVALID_SUBMISSION = 4;
 
