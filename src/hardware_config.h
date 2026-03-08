@@ -3,14 +3,14 @@
 // ====================
 // This Devices Configuration
 // ====================
-#define DEVICE_ID 112
-
-// Master 102
-// Slave 112
-// Slave 113
-
 // #define DEVICE_ROLE_MASTER
 #define DEVICE_ROLE_SLAVE
+
+#ifdef DEVICE_ROLE_MASTER
+#define DEVICE_ID 102
+#else
+#define DEVICE_ID 112
+#endif
 
 // ====================
 // Button Configuration

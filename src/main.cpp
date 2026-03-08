@@ -34,6 +34,21 @@ const int COUNTDOWN_SECONDS_BOOT = 3;
 const int COUNTDOWN_SECONDS_PHASE_START = 5;
 const int COUNTDOWN_SECONDS_INVALID_SUBMISSION = 4;
 
+const int STATE_BOOTING = -1;
+const int STATE_OFFSETS_SETUP = 0;
+const int STATE_PHASE_STAGED = 1;
+const int STATE_PHASE_LOADING = 2;
+const int STATE_PROCESSING = 3;
+const int STATE_MASTER_WAITING = 4;
+const int STATE_SLAVE_WAITING = 5;
+const int STATE_TRANSMIT_STAGED = 6;
+const int STATE_TRANSMIT_COMPLETE = 7;
+const int STATE_INVALID_SUBMISSION = 8;
+
+int currentState = STATE_BOOTING;
+int currentPhase = 0;
+bool phaseCompleted[NUM_PHASES] = {false, false, false};
+
 struct Orientation {
     int x;
     int y;
@@ -47,8 +62,6 @@ const Orientation phaseTargets[NUM_PHASES] = {
 };
 
 Orientation currentOrientation = {0, 0, 0};
-int currentPhase = 0;
-bool phaseCompleted[NUM_PHASES] = {false, false, false};
 
 struct PlayerSubmission {
     uint8_t deviceId;
@@ -111,19 +124,6 @@ bool isCalibrated() {
   }
   return true;
 }
-
-const int STATE_BOOTING = -1;
-const int STATE_OFFSETS_SETUP = 0;
-const int STATE_PHASE_STAGED = 1;
-const int STATE_PHASE_LOADING = 2;
-const int STATE_PROCESSING = 3;
-const int STATE_MASTER_WAITING = 4;
-const int STATE_SLAVE_WAITING = 5;
-const int STATE_TRANSMIT_STAGED = 6;
-const int STATE_TRANSMIT_COMPLETE = 7;
-const int STATE_INVALID_SUBMISSION = 8;
-
-int currentState = STATE_BOOTING;
 
 void setup() {
   Serial.begin(115200);
