@@ -62,6 +62,7 @@ const Orientation phaseTargets[NUM_PHASES] = {
 };
 
 Orientation currentOrientation = {0, 0, 0};
+float angleZOffset = 0.0f;
 
 struct PlayerSubmission {
     uint8_t deviceId;
@@ -81,6 +82,7 @@ void setupEffects();
 
 void calculateOffsets();
 
+void handleOffsetsButtonPressed(void* button_handle, void* usr_data);
 void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data);
 void handleLoadPhaseButtonPressed(void* button_handle, void* usr_data);
 void handleTransmitButtonPressed(void* button_handle, void* usr_data);
@@ -209,6 +211,9 @@ void setupMPU() {
 }
 
 void setupButtons() {
+  Button* resetOffsetsButton = new Button(RESET_OFFSETS_BUTTON_PIN, false);
+  resetOffsetsButton->attachPressDownEventCb(&handleOffsetsButtonPressed, NULL);
+
   Button* submitButton = new Button(SUBMIT_PHASE_BUTTON_PIN, false);
   submitButton->attachPressDownEventCb(&handleSubmitPhaseButtonPressed, NULL);
 
@@ -244,6 +249,23 @@ void calculateOffsets() {
   // delay(1000);
   mpu.calcOffsets(CALCULATE_OFFSET_GYRO, CALCULATE_OFFSET_ACCEL);
   delay(1000);
+}
+
+void handleOffsetsButtonPressed(void* button_handle, void* usr_data) {
+  Serial.println("Offsets button pressed");
+
+  if (currentState != STATE_PROCESSING) {
+    return;
+  }
+
+  int oldState = currentState;
+  transitionTo(STATE_OFFSETS_SETUP);
+
+  calculateOffsets();              // compute new bias offsets at current position first
+  setupMPU();                      // re-init: seeds angleX/Y from accelerometer using new offsets
+  angleZOffset = mpu.getAngleZ();  // angleZ is gyro-only and never reset by begin() -- snapshot it
+
+  transitionTo(oldState);
 }
 
 void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data) {
@@ -405,7 +427,7 @@ void transitionToAndThen(const int state, const int nextState) {
 void setCurrentOrientation() {
   currentOrientation.x = (int)mpu.getAngleX() * -1;
   currentOrientation.y = (int)mpu.getAngleY();
-  currentOrientation.z = (int)mpu.getAngleZ() * -1;
+  currentOrientation.z = (int)(mpu.getAngleZ() - angleZOffset) * -1;
 }
 
 bool orientationMatches(const Orientation& target, int x, int y, int z) {
