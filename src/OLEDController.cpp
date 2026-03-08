@@ -51,7 +51,7 @@ void OLEDController::renderOrientationBackground(Adafruit_SSD1306& oled) {
   oled.fillRect(55, 43, 67, 12, SSD1306_BLACK);
 }
 
-void OLEDController::renderBootScreen(Adafruit_SSD1306& oled) {
+void OLEDController::renderBootScreen(Adafruit_SSD1306& oled, int countdownSeconds) {
   oled.clearDisplay();
   oled.setTextSize(1);
   oled.setTextColor(WHITE);
@@ -60,7 +60,10 @@ void OLEDController::renderBootScreen(Adafruit_SSD1306& oled) {
   oled.print("BOOTING...");
 
   oled.display();
-  delay(2000);
+
+  for (int countdown = countdownSeconds; countdown > 0; --countdown) {
+    delay(1000);
+  }
 }
 
 void OLEDController::renderOrientation(Adafruit_SSD1306& oled, int x, int y, int z) {
@@ -228,7 +231,7 @@ void OLEDController::renderSlaveWaitScreen(Adafruit_SSD1306& oled) {
   oled.display();
 }
 
-void OLEDController::renderInvalidSubmissionScreen(Adafruit_SSD1306& oled) {
+void OLEDController::renderInvalidSubmissionScreen(Adafruit_SSD1306& oled, int countdownSeconds) {
   oled.clearDisplay();
   oled.setTextSize(1);
 
@@ -241,7 +244,7 @@ void OLEDController::renderInvalidSubmissionScreen(Adafruit_SSD1306& oled) {
 
   oled.display();
 
-  for (int countdown = 4; countdown > 0; --countdown) {
+  for (int countdown = countdownSeconds; countdown > 0; --countdown) {
     delay(1000);
   }
 }

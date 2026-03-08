@@ -34,7 +34,9 @@ struct Orientation {
 };
 
 const int TOTAL_PHASES = 3;
-const int PHASE_START_COUNTDOWN = 5;
+const int COUNTDOWN_SECONDS_BOOT = 3;
+const int COUNTDOWN_SECONDS_PHASE_START = 5;
+const int COUNTDOWN_SECONDS_INVALID_SUBMISSION = 4;
 
 const Orientation phaseTargets[TOTAL_PHASES] = {
     {0, 0, 10},  // Phase 1
@@ -75,6 +77,8 @@ void handleTransmitButtonPressed(void* button_handle, void* usr_data);
 
 void completePhase();
 void completeTransmit();
+
+void calculateOffsets();
 
 void setCurrentState(const int state);
 void transitionTo(const int state);
@@ -135,6 +139,7 @@ void setup() {
 #endif
 
   Wire.begin();
+  delay(2000);
 
 #ifdef DEVICE_ROLE_MASTER
   pinMode(LED_PHASE_1_SUCCESS_PIN, OUTPUT);
@@ -150,16 +155,15 @@ void setup() {
   digitalWrite(BUZZER_PIN, LOW);
 #endif
 
-  delay(2000);
-
   setupDisplay();
+  setupMPU();
 
   transitionTo(STATE_BOOTING);
   transitionTo(STATE_OFFSETS_SETUP);
 
   delay(1000);
 
-  setupMPU();
+  calculateOffsets();
 
   delay(1000);
 
@@ -217,9 +221,12 @@ void setupMPU() {
   while (status != 0) {
   }  // stop everything if could not connect to MPU6050
 
+  Serial.println("  ✓ MPU6050 initialized.");
+}
+
+void calculateOffsets() {
   Serial.println("Calculating MPU6050 offsets, do not move MPU6050");
   mpu.calcOffsets(CALCULATE_OFFSET_GYRO, CALCULATE_OFFSET_ACCEL);
-  Serial.println("  ✓ MPU6050 initialized.");
 }
 
 const char* getStateName(int state) {
@@ -260,7 +267,7 @@ void transitionTo(const int state) {
   switch (state) {
     case STATE_BOOTING:
       setCurrentState(STATE_BOOTING);
-      OLEDController::renderBootScreen(oled);
+      OLEDController::renderBootScreen(oled, COUNTDOWN_SECONDS_BOOT);
       break;
     case STATE_OFFSETS_SETUP:
       setCurrentState(STATE_OFFSETS_SETUP);
@@ -272,7 +279,7 @@ void transitionTo(const int state) {
       break;
     case STATE_PHASE_LOADING:
       setCurrentState(STATE_PHASE_LOADING);
-      OLEDController::renderPhaseLoading(oled, currentPhase, PHASE_START_COUNTDOWN);
+      OLEDController::renderPhaseLoading(oled, currentPhase, COUNTDOWN_SECONDS_PHASE_START);
       break;
     case STATE_PROCESSING:
       setCurrentState(STATE_PROCESSING);
@@ -295,7 +302,7 @@ void transitionTo(const int state) {
       break;
     case STATE_INVALID_SUBMISSION:
       setCurrentState(STATE_INVALID_SUBMISSION);
-      OLEDController::renderInvalidSubmissionScreen(oled);
+      OLEDController::renderInvalidSubmissionScreen(oled, COUNTDOWN_SECONDS_INVALID_SUBMISSION);
       break;
     default:
       Serial.printf("✗ Unknown state transition requested: %d\n", state);

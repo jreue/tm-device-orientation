@@ -4,7 +4,7 @@
 
 class OLEDController {
   public:
-    static void renderBootScreen(Adafruit_SSD1306& oled);
+    static void renderBootScreen(Adafruit_SSD1306& oled, int countdownSeconds);
 
     static void renderOrientation(Adafruit_SSD1306& oled, int x, int y, int z);
 
@@ -19,7 +19,7 @@ class OLEDController {
     static void renderMasterWaitScreen(Adafruit_SSD1306& oled);
     static void renderSlaveWaitScreen(Adafruit_SSD1306& oled);
 
-    static void renderInvalidSubmissionScreen(Adafruit_SSD1306& oled);
+    static void renderInvalidSubmissionScreen(Adafruit_SSD1306& oled, int countdownSeconds);
 
   private:
     static void renderOrientationBackground(Adafruit_SSD1306& oled);
