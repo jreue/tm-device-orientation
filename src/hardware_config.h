@@ -1,5 +1,13 @@
 #pragma once
 
+#define NUM_PLAYERS 1  // (1=Master only, 2=Master+1, 3=Master+2)
+#define NUM_PHASES 3   // Number of orientation phases players must complete before transmission
+#define ORIENTATION_TOLERANCE 2  // degrees of tolerance for matching orientation targets
+
+#define MASTER_DEVICE_ID 102
+#define SLAVE_DEVICE_ID_1 112
+#define SLAVE_DEVICE_ID_2 113
+
 // ====================
 // This Devices Configuration
 // ====================
@@ -7,9 +15,9 @@
 // #define DEVICE_ROLE_SLAVE
 
 #ifdef DEVICE_ROLE_MASTER
-#define DEVICE_ID 102
+#define DEVICE_ID MASTER_DEVICE_ID
 #else
-#define DEVICE_ID 112
+#define DEVICE_ID SLAVE_DEVICE_ID_1
 #endif
 
 // ====================

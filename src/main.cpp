@@ -25,11 +25,6 @@ EspNowHelper espNowHelper;
 unsigned long orientationRefreshTimer = 0;
 const unsigned long ORIENTATION_REFRESH_INTERVAL_MS = 100;
 
-const int ORIENTATION_TOLERANCE = 2;  // degrees of tolerance for matching orientation targets
-
-const int NUM_PHASES = 3;
-const int NUM_PLAYERS = 2;  // Master + 1 Slave
-
 const int COUNTDOWN_SECONDS_BOOT = 5;
 const int COUNTDOWN_SECONDS_PHASE_START = 5;
 const int COUNTDOWN_SECONDS_INVALID_SUBMISSION = 4;
@@ -47,7 +42,7 @@ const int STATE_INVALID_SUBMISSION = 8;
 
 int currentState = STATE_BOOTING;
 int currentPhase = 0;
-bool phaseCompleted[NUM_PHASES] = {false, false, false};
+bool phaseCompleted[NUM_PHASES] = {};
 
 struct Orientation {
     int x;
@@ -69,10 +64,22 @@ struct PlayerSubmission {
     bool success;
 };
 
+#if NUM_PLAYERS == 1
 PlayerSubmission playerSubmissions[NUM_PLAYERS] = {
-    {102, false},  // Master player
-    {112, false}   // Slave player
+    {MASTER_DEVICE_ID, false},  // Master player
 };
+#elif NUM_PLAYERS == 2
+PlayerSubmission playerSubmissions[NUM_PLAYERS] = {
+    {MASTER_DEVICE_ID, false},  // Master player
+    {SLAVE_DEVICE_ID_1, false}  // Slave player 1
+};
+#elif NUM_PLAYERS == 3
+PlayerSubmission playerSubmissions[NUM_PLAYERS] = {
+    {MASTER_DEVICE_ID, false},   // Master player
+    {SLAVE_DEVICE_ID_1, false},  // Slave player 1
+    {SLAVE_DEVICE_ID_2, false}   // Slave player 2
+};
+#endif
 
 void setupESPNow();
 void setupDisplay();
