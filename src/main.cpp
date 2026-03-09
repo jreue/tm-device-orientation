@@ -393,6 +393,7 @@ void transitionTo(const int state) {
       break;
     case STATE_PROCESSING:
       setCurrentState(STATE_PROCESSING);
+      OLEDController::renderProgessBackground(oled);
       break;
     case STATE_MASTER_WAITING:
       setCurrentState(STATE_MASTER_WAITING);

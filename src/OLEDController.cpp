@@ -60,14 +60,6 @@ static const unsigned char PROGMEM image_cross_contour_bits[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x80, 0x51, 0x40, 0x8a, 0x20, 0x44, 0x40, 0x20, 0x80,
     0x11, 0x00, 0x20, 0x80, 0x44, 0x40, 0x8a, 0x20, 0x51, 0x40, 0x20, 0x80, 0x00, 0x00, 0x00, 0x00};
 
-void OLEDController::renderOrientationBackground(Adafruit_SSD1306& oled) {
-  oled.drawBitmap(0, 0, image_passport_left_bits, 6, 46, SSD1306_WHITE);
-  oled.drawBitmap(122, 0, image_passport_left_copy_1_bits, 6, 46, SSD1306_WHITE);
-  oled.drawBitmap(0, 46, image_passport_bottom_bits, 128, 18, SSD1306_WHITE);
-  oled.drawLine(6, 0, 121, 0, SSD1306_WHITE);
-  oled.fillRect(55, 43, 67, 12, SSD1306_BLACK);
-}
-
 void OLEDController::renderBootScreen(Adafruit_SSD1306& oled, int countdownSeconds) {
   oled.clearDisplay();
   oled.setTextSize(1);
@@ -97,7 +89,15 @@ void OLEDController::renderBootScreen(Adafruit_SSD1306& oled, int countdownSecon
   }
 }
 
-void OLEDController::renderOrientation(Adafruit_SSD1306& oled, int x, int y, int z) {
+void OLEDController::renderOrientationBackground(Adafruit_SSD1306& oled) {
+  oled.drawBitmap(0, 0, image_passport_left_bits, 6, 46, SSD1306_WHITE);
+  oled.drawBitmap(122, 0, image_passport_left_copy_1_bits, 6, 46, SSD1306_WHITE);
+  oled.drawBitmap(0, 46, image_passport_bottom_bits, 128, 18, SSD1306_WHITE);
+  oled.drawLine(6, 0, 121, 0, SSD1306_WHITE);
+  oled.fillRect(55, 43, 67, 12, SSD1306_BLACK);
+}
+
+void OLEDController::renderProgessBackground(Adafruit_SSD1306& oled) {
   oled.clearDisplay();
   oled.setTextSize(1);
 
@@ -112,7 +112,15 @@ void OLEDController::renderOrientation(Adafruit_SSD1306& oled, int x, int y, int
   oled.setCursor(34, 44);
   oled.print("YAW");
 
+  oled.display();
+}
+
+void OLEDController::renderOrientation(Adafruit_SSD1306& oled, int x, int y, int z) {
   oled.setTextSize(2);
+
+  oled.fillRect(63, 6, 35, 15, SSD1306_BLACK);
+  oled.fillRect(63, 23, 35, 15, SSD1306_BLACK);
+  oled.fillRect(64, 39, 35, 15, SSD1306_BLACK);
 
   int rollWidth = String(x).length() * 12;
   oled.setCursor(100 - rollWidth, 6);

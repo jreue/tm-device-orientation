@@ -6,6 +6,7 @@ class OLEDController {
   public:
     static void renderBootScreen(Adafruit_SSD1306& oled, int countdownSeconds);
 
+    static void renderProgessBackground(Adafruit_SSD1306& oled);
     static void renderOrientation(Adafruit_SSD1306& oled, int x, int y, int z);
 
     static void renderOffsetsSetup(Adafruit_SSD1306& oled);
