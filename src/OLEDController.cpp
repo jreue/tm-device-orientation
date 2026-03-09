@@ -115,7 +115,8 @@ void OLEDController::renderOrientationLayout(Adafruit_SSD1306& oled) {
   oled.display();
 }
 
-void OLEDController::renderOrientationValues(Adafruit_SSD1306& oled, int x, int y, int z) {
+void OLEDController::renderOrientationValues(Adafruit_SSD1306& oled, int x, int y, int z,
+                                             bool doDisplay) {
   oled.setTextSize(2);
 
   oled.fillRect(63, 6, 35, 15, SSD1306_BLACK);
@@ -134,7 +135,9 @@ void OLEDController::renderOrientationValues(Adafruit_SSD1306& oled, int x, int 
   oled.setCursor(100 - yawWidth, 40);
   oled.print(String(z));
 
-  oled.display();
+  if (doDisplay) {
+    oled.display();
+  }
 }
 
 void OLEDController::renderOffsetsSetup(Adafruit_SSD1306& oled) {

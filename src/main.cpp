@@ -25,6 +25,8 @@ EspNowHelper espNowHelper;
 unsigned long orientationRefreshTimer = 0;
 const unsigned long ORIENTATION_REFRESH_INTERVAL_MS = 100;
 
+unsigned long processingPhaseStartTime = 0;
+
 const int COUNTDOWN_SECONDS_BOOT = 5;
 const int COUNTDOWN_SECONDS_PHASE_START = 5;
 const int COUNTDOWN_SECONDS_INVALID_SUBMISSION = 4;
@@ -39,6 +41,7 @@ const int STATE_SLAVE_WAITING = 5;
 const int STATE_TRANSMIT_STAGED = 6;
 const int STATE_TRANSMIT_COMPLETE = 7;
 const int STATE_INVALID_SUBMISSION = 8;
+const int STATE_TIMED_PROCESSING = 9;
 
 int currentState = STATE_BOOTING;
 int currentPhase = 0;
@@ -54,6 +57,17 @@ const Orientation phaseTargets[NUM_PHASES] = {
     {0, 0, 10},  // Phase 1
     {0, 0, 15},  // Phase 2
     {0, 0, 10}   // Phase 3
+};
+
+struct PhaseMeta {
+    bool isTimed;
+    int numSeconds;
+};
+
+const PhaseMeta phaseMetas[NUM_PHASES] = {
+    {false, 0},   // Phase 1 - untimed
+    {true, 120},  // Phase 2 - 120 seconds
+    {true, 60},   // Phase 3 - 60 seconds
 };
 
 Orientation currentOrientation = {0, 0, 0};
@@ -103,6 +117,7 @@ void setCurrentState(const int state);
 
 void transitionTo(const int state);
 void transitionToAndThen(const int state, const int nextState);
+int getProcessingStateType();
 
 void setCurrentOrientation();
 bool orientationMatches(const Orientation& target, int x, int y, int z);
@@ -163,14 +178,32 @@ void setup() {
 void loop() {
   mpu.update();
 
-  if (currentState != STATE_PROCESSING) {
+  if (currentState != STATE_PROCESSING && currentState != STATE_TIMED_PROCESSING) {
     return;  // Skip processing if we are in a non-processing state
+  }
+
+  if (currentState == STATE_TIMED_PROCESSING) {
+    unsigned long timeoutMs = (unsigned long)phaseMetas[currentPhase].numSeconds * 1000UL;
+    if (millis() - processingPhaseStartTime >= timeoutMs) {
+      Serial.println("Processing timer expired. Restarting phase.");
+      resetPlayerSubmissions();
+      transitionTo(STATE_PHASE_STAGED);
+      return;
+    }
   }
 
   if ((millis() - orientationRefreshTimer) > ORIENTATION_REFRESH_INTERVAL_MS) {
     setCurrentOrientation();
-    OLEDController::renderOrientationValues(oled, currentOrientation.x, currentOrientation.y,
-                                            currentOrientation.z);
+
+    if (currentState == STATE_TIMED_PROCESSING) {
+      unsigned long timeoutMs = (unsigned long)phaseMetas[currentPhase].numSeconds * 1000UL;
+      OLEDController::renderOrientationValues(oled, currentOrientation.x, currentOrientation.y,
+                                              currentOrientation.z, false);
+      Timer::drawHorizontalTimer(oled, processingPhaseStartTime, timeoutMs);
+    } else {
+      OLEDController::renderOrientationValues(oled, currentOrientation.x, currentOrientation.y,
+                                              currentOrientation.z, true);
+    }
 
     orientationRefreshTimer = millis();
   }
@@ -253,7 +286,7 @@ void setupEffects() {
 
 void calculateOffsets() {
   Serial.println("Calculating MPU6050 offsets, do not move MPU6050");
-  // delay(1000);
+  delay(1000);
   mpu.calcOffsets(CALCULATE_OFFSET_GYRO, CALCULATE_OFFSET_ACCEL);
   delay(1000);
 }
@@ -261,7 +294,7 @@ void calculateOffsets() {
 void handleOffsetsButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Offsets button pressed");
 
-  if (currentState != STATE_PROCESSING) {
+  if (currentState != STATE_PROCESSING && currentState != STATE_TIMED_PROCESSING) {
     return;
   }
 
@@ -278,7 +311,7 @@ void handleOffsetsButtonPressed(void* button_handle, void* usr_data) {
 void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Submit phase button pressed");
 
-  if (currentState != STATE_PROCESSING) {
+  if (currentState != STATE_PROCESSING && currentState != STATE_TIMED_PROCESSING) {
     return;
   }
 
@@ -307,7 +340,7 @@ void handleLoadPhaseButtonPressed(void* button_handle, void* usr_data) {
   }
 
   espNowHelper.sendOrientationPhaseUpdated(orientationSlave1Address, currentPhase);
-  transitionToAndThen(STATE_PHASE_LOADING, STATE_PROCESSING);
+  transitionToAndThen(STATE_PHASE_LOADING, getProcessingStateType());
 }
 
 void handleTransmitButtonPressed(void* button_handle, void* usr_data) {
@@ -336,7 +369,7 @@ void handlePhaseMessageFromMaster(const OrientationPhaseMessage& message) {
 
   currentPhase = message.phase;
 
-  transitionToAndThen(STATE_PHASE_LOADING, STATE_PROCESSING);
+  transitionToAndThen(STATE_PHASE_LOADING, getProcessingStateType());
 }
 
 // Master -> Slave: Master transmitted final orientation submission to hub
@@ -368,6 +401,8 @@ const char* getStateName(int state) {
       return "STATE_TRANSMIT_COMPLETE";
     case STATE_INVALID_SUBMISSION:
       return "STATE_INVALID_SUBMISSION";
+    case STATE_TIMED_PROCESSING:
+      return "STATE_TIMED_PROCESSING";
     default:
       return "Unknown State";
   }
@@ -402,6 +437,11 @@ void transitionTo(const int state) {
       setCurrentState(STATE_PROCESSING);
       OLEDController::renderOrientationLayout(oled);
       break;
+    case STATE_TIMED_PROCESSING:
+      setCurrentState(STATE_TIMED_PROCESSING);
+      processingPhaseStartTime = millis();
+      OLEDController::renderOrientationLayout(oled);
+      break;
     case STATE_MASTER_WAITING:
       setCurrentState(STATE_MASTER_WAITING);
       OLEDController::renderMasterWaitScreen(oled);
@@ -432,6 +472,10 @@ void transitionToAndThen(const int state, const int nextState) {
   transitionTo(nextState);
 }
 
+int getProcessingStateType() {
+  return phaseMetas[currentPhase].isTimed ? STATE_TIMED_PROCESSING : STATE_PROCESSING;
+}
+
 void setCurrentOrientation() {
   currentOrientation.x = (int)mpu.getAngleX() * -1;
   currentOrientation.y = (int)mpu.getAngleY();
@@ -457,7 +501,7 @@ void processOrientationMatch(uint16_t x, uint16_t y, uint16_t z) {
 
 void processOrientationMismatch() {
   Serial.printf("Phase %d not matched. Try again.\n", currentPhase + 1);
-  transitionToAndThen(STATE_INVALID_SUBMISSION, STATE_PROCESSING);
+  transitionToAndThen(STATE_INVALID_SUBMISSION, getProcessingStateType());
 }
 
 void submitAndPossiblyCompletePhase(uint8_t deviceId) {
