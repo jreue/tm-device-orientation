@@ -6,8 +6,8 @@ class OLEDController {
   public:
     static void renderBootScreen(Adafruit_SSD1306& oled, int countdownSeconds);
 
-    static void renderProgessBackground(Adafruit_SSD1306& oled);
-    static void renderOrientation(Adafruit_SSD1306& oled, int x, int y, int z);
+    static void renderOrientationLayout(Adafruit_SSD1306& oled);
+    static void renderOrientationValues(Adafruit_SSD1306& oled, int x, int y, int z);
 
     static void renderOffsetsSetup(Adafruit_SSD1306& oled);
 
@@ -23,7 +23,7 @@ class OLEDController {
     static void renderInvalidSubmissionScreen(Adafruit_SSD1306& oled, int countdownSeconds);
 
   private:
-    static void renderOrientationBackground(Adafruit_SSD1306& oled);
+    static void renderOrientationChrome(Adafruit_SSD1306& oled);
     static void renderPhaseProgressIndicators(Adafruit_SSD1306& oled, int currentPhase,
                                               int totalPhases);
 };

@@ -162,8 +162,8 @@ void loop() {
 
   if ((millis() - orientationRefreshTimer) > ORIENTATION_REFRESH_INTERVAL_MS) {
     setCurrentOrientation();
-    OLEDController::renderOrientation(oled, currentOrientation.x, currentOrientation.y,
-                                      currentOrientation.z);
+    OLEDController::renderOrientationValues(oled, currentOrientation.x, currentOrientation.y,
+                                            currentOrientation.z);
 
     orientationRefreshTimer = millis();
   }
@@ -393,7 +393,7 @@ void transitionTo(const int state) {
       break;
     case STATE_PROCESSING:
       setCurrentState(STATE_PROCESSING);
-      OLEDController::renderProgessBackground(oled);
+      OLEDController::renderOrientationLayout(oled);
       break;
     case STATE_MASTER_WAITING:
       setCurrentState(STATE_MASTER_WAITING);

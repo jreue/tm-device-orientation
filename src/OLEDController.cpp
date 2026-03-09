@@ -89,7 +89,7 @@ void OLEDController::renderBootScreen(Adafruit_SSD1306& oled, int countdownSecon
   }
 }
 
-void OLEDController::renderOrientationBackground(Adafruit_SSD1306& oled) {
+void OLEDController::renderOrientationChrome(Adafruit_SSD1306& oled) {
   oled.drawBitmap(0, 0, image_passport_left_bits, 6, 46, SSD1306_WHITE);
   oled.drawBitmap(122, 0, image_passport_left_copy_1_bits, 6, 46, SSD1306_WHITE);
   oled.drawBitmap(0, 46, image_passport_bottom_bits, 128, 18, SSD1306_WHITE);
@@ -97,11 +97,11 @@ void OLEDController::renderOrientationBackground(Adafruit_SSD1306& oled) {
   oled.fillRect(55, 43, 67, 12, SSD1306_BLACK);
 }
 
-void OLEDController::renderProgessBackground(Adafruit_SSD1306& oled) {
+void OLEDController::renderOrientationLayout(Adafruit_SSD1306& oled) {
   oled.clearDisplay();
   oled.setTextSize(1);
 
-  renderOrientationBackground(oled);
+  renderOrientationChrome(oled);
 
   oled.setCursor(28, 10);
   oled.print("ROLL");
@@ -115,7 +115,7 @@ void OLEDController::renderProgessBackground(Adafruit_SSD1306& oled) {
   oled.display();
 }
 
-void OLEDController::renderOrientation(Adafruit_SSD1306& oled, int x, int y, int z) {
+void OLEDController::renderOrientationValues(Adafruit_SSD1306& oled, int x, int y, int z) {
   oled.setTextSize(2);
 
   oled.fillRect(63, 6, 35, 15, SSD1306_BLACK);
@@ -274,7 +274,7 @@ void OLEDController::renderInvalidSubmissionScreen(Adafruit_SSD1306& oled, int c
   oled.clearDisplay();
   oled.setTextSize(1);
 
-  renderOrientationBackground(oled);
+  renderOrientationChrome(oled);
 
   oled.setCursor(11, 10);
   oled.print("INVALID SUBMISSION");
