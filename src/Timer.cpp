@@ -34,7 +34,7 @@ void Timer::drawHorizontalTimer(Adafruit_SSD1306& oled, unsigned long startTime,
   if (progress > 1.0f)
     progress = 1.0f;
 
-  int barHeight = 4;
+  int barHeight = 3;
   int barWidth = 114;
   int filledWidth = (int)((1.0f - progress) * barWidth);
 

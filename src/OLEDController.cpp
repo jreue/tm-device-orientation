@@ -60,6 +60,10 @@ static const unsigned char PROGMEM image_cross_contour_bits[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x80, 0x51, 0x40, 0x8a, 0x20, 0x44, 0x40, 0x20, 0x80,
     0x11, 0x00, 0x20, 0x80, 0x44, 0x40, 0x8a, 0x20, 0x51, 0x40, 0x20, 0x80, 0x00, 0x00, 0x00, 0x00};
 
+static const unsigned char PROGMEM image_clock_alarm_bits[] = {
+    0x79, 0x3c, 0xb3, 0x9a, 0xed, 0x6e, 0xd0, 0x16, 0xa0, 0x0a, 0x41, 0x04, 0x41, 0x04, 0x81, 0x02,
+    0xc1, 0x06, 0x82, 0x02, 0x44, 0x04, 0x48, 0x04, 0x20, 0x08, 0x10, 0x10, 0x2d, 0x68, 0x43, 0x84};
+
 void OLEDController::renderBootScreen(Adafruit_SSD1306& oled, int countdownSeconds) {
   oled.clearDisplay();
   oled.setTextSize(1);
@@ -90,6 +94,8 @@ void OLEDController::renderBootScreen(Adafruit_SSD1306& oled, int countdownSecon
 }
 
 void OLEDController::renderOrientationChrome(Adafruit_SSD1306& oled) {
+  oled.setTextSize(1);
+
   oled.drawBitmap(0, 0, image_passport_left_bits, 6, 46, SSD1306_WHITE);
   oled.drawBitmap(122, 0, image_passport_left_copy_1_bits, 6, 46, SSD1306_WHITE);
   oled.drawBitmap(0, 46, image_passport_bottom_bits, 128, 18, SSD1306_WHITE);
@@ -284,6 +290,23 @@ void OLEDController::renderInvalidSubmissionScreen(Adafruit_SSD1306& oled, int c
 
   oled.drawBitmap(59, 24, image_cross_contour_bits, 11, 16, SSD1306_WHITE);
 
+  oled.display();
+
+  for (int countdown = countdownSeconds; countdown > 0; --countdown) {
+    delay(1000);
+  }
+}
+
+void OLEDController::renderTimeoutSubmissionScreen(Adafruit_SSD1306& oled, int countdownSeconds) {
+  oled.clearDisplay();
+  oled.setTextSize(1);
+
+  renderOrientationChrome(oled);
+
+  oled.setCursor(11, 10);
+  oled.print("SUBMISSION TIMEOUT");
+
+  oled.drawBitmap(57, 24, image_clock_alarm_bits, 15, 16, SSD1306_WHITE);
   oled.display();
 
   for (int countdown = countdownSeconds; countdown > 0; --countdown) {

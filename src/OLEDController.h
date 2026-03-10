@@ -22,6 +22,7 @@ class OLEDController {
     static void renderSlaveWaitScreen(Adafruit_SSD1306& oled);
 
     static void renderInvalidSubmissionScreen(Adafruit_SSD1306& oled, int countdownSeconds);
+    static void renderTimeoutSubmissionScreen(Adafruit_SSD1306& oled, int countdownSeconds);
 
   private:
     static void renderOrientationChrome(Adafruit_SSD1306& oled);

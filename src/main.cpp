@@ -30,6 +30,7 @@ unsigned long processingPhaseStartTime = 0;
 const int COUNTDOWN_SECONDS_BOOT = 5;
 const int COUNTDOWN_SECONDS_PHASE_START = 5;
 const int COUNTDOWN_SECONDS_INVALID_SUBMISSION = 4;
+const int COUNTDOWN_SECONDS_TIMEOUT_SUBMISSION = 4;
 
 const int STATE_BOOTING = -1;
 const int STATE_OFFSETS_SETUP = 0;
@@ -42,6 +43,7 @@ const int STATE_SLAVE_WAITING = 6;
 const int STATE_TRANSMIT_STAGED = 7;
 const int STATE_TRANSMIT_COMPLETE = 8;
 const int STATE_INVALID_SUBMISSION = 9;
+const int STATE_TIMEOUT_SUBMISSION = 10;
 
 int currentState = STATE_BOOTING;
 int currentPhase = 0;
@@ -65,9 +67,9 @@ struct PhaseMeta {
 };
 
 const PhaseMeta phaseMetas[NUM_PHASES] = {
-    {false, 0},   // Phase 1 - untimed
-    {true, 120},  // Phase 2 - 120 seconds
-    {true, 60},   // Phase 3 - 60 seconds
+    {false, 0},  // Phase 1 - untimed
+    {true, 20},  // Phase 2 - 20 seconds
+    {true, 30},  // Phase 3 - 30 seconds
 };
 
 Orientation currentOrientation = {0, 0, 0};
@@ -108,7 +110,10 @@ void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data);
 void handleLoadPhaseButtonPressed(void* button_handle, void* usr_data);
 void handleTransmitButtonPressed(void* button_handle, void* usr_data);
 
+void handleOrientationTimeout();
+
 void handleSubmissionMessageFromSlave(const OrientationSubmissionMessage& message);
+void handleSubmissionMessageFromMaster(const OrientationSubmissionMessage& message);
 void handlePhaseMessageFromMaster(const OrientationPhaseMessage& message);
 void handleTransmissionMessageFromMaster(const OrientationTransmissionMessage& message);
 
@@ -124,6 +129,8 @@ bool orientationMatches(const Orientation& target, int x, int y, int z);
 
 void processOrientationMatch(uint16_t x, uint16_t y, uint16_t z);
 void processOrientationMismatch();
+void processSubmissionTimeout();
+
 void submitAndPossiblyCompletePhase(uint8_t deviceId);
 
 void setPlayerSubmission(uint8_t deviceId);
@@ -186,8 +193,7 @@ void loop() {
     unsigned long timeoutMs = (unsigned long)phaseMetas[currentPhase].numSeconds * 1000UL;
     if (millis() - processingPhaseStartTime >= timeoutMs) {
       Serial.println("Processing timer expired. Restarting phase.");
-      resetPlayerSubmissions();
-      transitionTo(STATE_PHASE_STAGED);
+      handleOrientationTimeout();
       return;
     }
   }
@@ -225,6 +231,7 @@ void setupESPNow() {
   Serial.println("Device role: SLAVE");
   espNowHelper.addPeer(orientiationMasterAddress);
 
+  espNowHelper.registerOrientationMessageHandler(&handleSubmissionMessageFromMaster);
   espNowHelper.registerOrientationPhaseMessageHandler(&handlePhaseMessageFromMaster);
   espNowHelper.registerOrientationTransmissionHandler(&handleTransmissionMessageFromMaster);
 #endif
@@ -360,7 +367,21 @@ void handleSubmissionMessageFromSlave(const OrientationSubmissionMessage& messag
   Serial.printf("Received orientation message from slave module: %d\n", message.deviceId);
   Serial.printf("  Roll: %d, Pitch: %d, Yaw: %d\n", message.roll, message.pitch, message.yaw);
 
-  submitAndPossiblyCompletePhase(message.deviceId);
+  if (message.success) {
+    submitAndPossiblyCompletePhase(message.deviceId);
+  } else {
+    processSubmissionTimeout();
+  }
+}
+
+// Master -> Slave: Master submitted orientation (timeout only)
+void handleSubmissionMessageFromMaster(const OrientationSubmissionMessage& message) {
+  Serial.printf("Received orientation message from master module: %d\n", message.deviceId);
+  Serial.printf("  Roll: %d, Pitch: %d, Yaw: %d\n", message.roll, message.pitch, message.yaw);
+
+  if (!message.success) {
+    transitionToAndThen(STATE_TIMEOUT_SUBMISSION, STATE_SLAVE_WAITING);
+  }
 }
 
 // Master -> Slave: Master started new phase
@@ -379,6 +400,25 @@ void handleTransmissionMessageFromMaster(const OrientationTransmissionMessage& m
   transitionTo(STATE_TRANSMIT_COMPLETE);
 }
 
+void handleOrientationTimeout() {
+  Serial.println("Orientation submission timed out. Restarting phase.");
+
+#ifdef DEVICE_ROLE_MASTER
+  espNowHelper.sendOrientationSubmission(orientationSlave1Address, 0, 0, 0, currentPhase, false);
+  processSubmissionTimeout();
+
+#endif
+#ifdef DEVICE_ROLE_SLAVE
+  espNowHelper.sendOrientationSubmission(orientiationMasterAddress, 0, 0, 0, currentPhase, false);
+  transitionTo(STATE_TIMEOUT_SUBMISSION);
+#endif
+}
+
+void processSubmissionTimeout() {
+  transitionToAndThen(STATE_TIMEOUT_SUBMISSION, STATE_PHASE_STAGED);
+  resetPlayerSubmissions();
+}
+
 const char* getStateName(int state) {
   switch (state) {
     case STATE_BOOTING:
@@ -391,6 +431,8 @@ const char* getStateName(int state) {
       return "STATE_PHASE_LOADING";
     case STATE_PROCESSING:
       return "STATE_PROCESSING";
+    case STATE_TIMED_PROCESSING:
+      return "STATE_TIMED_PROCESSING";
     case STATE_MASTER_WAITING:
       return "STATE_MASTER_WAITING";
     case STATE_SLAVE_WAITING:
@@ -401,8 +443,8 @@ const char* getStateName(int state) {
       return "STATE_TRANSMIT_COMPLETE";
     case STATE_INVALID_SUBMISSION:
       return "STATE_INVALID_SUBMISSION";
-    case STATE_TIMED_PROCESSING:
-      return "STATE_TIMED_PROCESSING";
+    case STATE_TIMEOUT_SUBMISSION:
+      return "STATE_TIMEOUT_SUBMISSION";
     default:
       return "Unknown State";
   }
@@ -461,6 +503,10 @@ void transitionTo(const int state) {
     case STATE_INVALID_SUBMISSION:
       setCurrentState(STATE_INVALID_SUBMISSION);
       OLEDController::renderInvalidSubmissionScreen(oled, COUNTDOWN_SECONDS_INVALID_SUBMISSION);
+      break;
+    case STATE_TIMEOUT_SUBMISSION:
+      setCurrentState(STATE_TIMEOUT_SUBMISSION);
+      OLEDController::renderTimeoutSubmissionScreen(oled, COUNTDOWN_SECONDS_TIMEOUT_SUBMISSION);
       break;
     default:
       Serial.printf("✗ Unknown state transition requested: %d\n", state);
