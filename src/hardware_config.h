@@ -23,10 +23,10 @@
 // ====================
 // Button Configuration
 // ====================
-#define RESET_OFFSETS_BUTTON_PIN GPIO_NUM_4
 #define SUBMIT_PHASE_BUTTON_PIN GPIO_NUM_5
-#define LOAD_PHASE_BUTTON_PIN GPIO_NUM_16
-#define TRANSMIT_BUTTON_PIN GPIO_NUM_17
+#define RESET_OFFSETS_BUTTON_PIN GPIO_NUM_17  // TX2
+#define TRANSMIT_BUTTON_PIN GPIO_NUM_16       // RX2
+#define LOAD_PHASE_BUTTON_PIN GPIO_NUM_4
 
 // ====================
 // LED Configuration
