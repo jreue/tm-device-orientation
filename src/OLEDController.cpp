@@ -83,14 +83,16 @@ void OLEDController::renderBootScreen(Adafruit_SSD1306& oled, int countdownSecon
   oled.drawBitmap(76, 30, image_arrow_right_bits, 7, 5, SSD1306_WHITE);
   oled.drawBitmap(91, 24, image_network_www_bits, 16, 16, SSD1306_WHITE);
 
-  oled.setCursor(25, 55);
+  oled.setCursor(20, 55);
 #ifdef DEVICE_ROLE_MASTER
   oled.print("MASTER UNIT v8.58");
 #endif
-#ifdef DEVICE_ROLE_SLAVE
-  oled.print("SLAVE UNIT v8.58");
+#ifdef DEVICE_ROLE_SLAVE_1
+  oled.print("SLAVE UNIT 1 v8.58");
 #endif
-
+#ifdef DEVICE_ROLE_SLAVE_2
+  oled.print("SLAVE UNIT 2 v8.58");
+#endif
   oled.display();
 
   for (int countdown = countdownSeconds; countdown > 0; --countdown) {

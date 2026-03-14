@@ -17,8 +17,9 @@ Adafruit_SSD1306 oled(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, &Wire, OLED_RESET);
 MPU6050 mpu(Wire);
 
 uint8_t hubAddress[] = HUB_MAC_ADDRESS;
-uint8_t orientiationMasterAddress[] = ORIENTATION_MASTER_MAC_ADDRESS;
+uint8_t orientationMasterAddress[] = ORIENTATION_MASTER_MAC_ADDRESS;
 uint8_t orientationSlave1Address[] = ORIENTATION_SLAVE_1_MAC_ADDRESS;
+uint8_t orientationSlave2Address[] = ORIENTATION_SLAVE_2_MAC_ADDRESS;
 
 EspNowHelper espNowHelper;
 
@@ -177,7 +178,10 @@ void setup() {
 #ifdef DEVICE_ROLE_MASTER
   transitionTo(STATE_PHASE_STAGED);
 #endif
-#ifdef DEVICE_ROLE_SLAVE
+#ifdef DEVICE_ROLE_SLAVE_1
+  transitionTo(STATE_SLAVE_WAITING);
+#endif
+#ifdef DEVICE_ROLE_SLAVE_2
   transitionTo(STATE_SLAVE_WAITING);
 #endif
 }
@@ -222,14 +226,24 @@ void setupESPNow() {
   Serial.println("Device role: MASTER");
   espNowHelper.addPeer(hubAddress);
   espNowHelper.addPeer(orientationSlave1Address);
+  espNowHelper.addPeer(orientationSlave2Address);
   espNowHelper.sendModuleConnected(hubAddress);
 
   espNowHelper.registerOrientationMessageHandler(&handleSubmissionMessageFromSlave);
 #endif
 
-#ifdef DEVICE_ROLE_SLAVE
-  Serial.println("Device role: SLAVE");
-  espNowHelper.addPeer(orientiationMasterAddress);
+#ifdef DEVICE_ROLE_SLAVE_1
+  Serial.println("Device role: SLAVE 1");
+  espNowHelper.addPeer(orientationMasterAddress);
+
+  espNowHelper.registerOrientationMessageHandler(&handleSubmissionMessageFromMaster);
+  espNowHelper.registerOrientationPhaseMessageHandler(&handlePhaseMessageFromMaster);
+  espNowHelper.registerOrientationTransmissionHandler(&handleTransmissionMessageFromMaster);
+#endif
+
+#ifdef DEVICE_ROLE_SLAVE_2
+  Serial.println("Device role: SLAVE 2");
+  espNowHelper.addPeer(orientationMasterAddress);
 
   espNowHelper.registerOrientationMessageHandler(&handleSubmissionMessageFromMaster);
   espNowHelper.registerOrientationPhaseMessageHandler(&handlePhaseMessageFromMaster);
@@ -347,6 +361,8 @@ void handleLoadPhaseButtonPressed(void* button_handle, void* usr_data) {
   }
 
   espNowHelper.sendOrientationPhaseUpdated(orientationSlave1Address, currentPhase);
+  espNowHelper.sendOrientationPhaseUpdated(orientationSlave2Address, currentPhase);
+
   transitionToAndThen(STATE_PHASE_LOADING, getProcessingStateType());
 }
 
@@ -408,8 +424,12 @@ void handleOrientationTimeout() {
   processSubmissionTimeout();
 
 #endif
-#ifdef DEVICE_ROLE_SLAVE
-  espNowHelper.sendOrientationSubmission(orientiationMasterAddress, 0, 0, 0, currentPhase, false);
+#ifdef DEVICE_ROLE_SLAVE_1
+  espNowHelper.sendOrientationSubmission(orientationMasterAddress, 0, 0, 0, currentPhase, false);
+  transitionTo(STATE_TIMEOUT_SUBMISSION);
+#endif
+#ifdef DEVICE_ROLE_SLAVE_2
+  espNowHelper.sendOrientationSubmission(orientationMasterAddress, 0, 0, 0, currentPhase, false);
   transitionTo(STATE_TIMEOUT_SUBMISSION);
 #endif
 }
@@ -539,8 +559,12 @@ void processOrientationMatch(uint16_t x, uint16_t y, uint16_t z) {
 
   submitAndPossiblyCompletePhase(DEVICE_ID);
 #endif
-#ifdef DEVICE_ROLE_SLAVE
-  espNowHelper.sendOrientationSubmission(orientiationMasterAddress, x, y, z, currentPhase, true);
+#ifdef DEVICE_ROLE_SLAVE_1
+  espNowHelper.sendOrientationSubmission(orientationMasterAddress, x, y, z, currentPhase, true);
+  transitionTo(STATE_SLAVE_WAITING);
+#endif
+#ifdef DEVICE_ROLE_SLAVE_2
+  espNowHelper.sendOrientationSubmission(orientationMasterAddress, x, y, z, currentPhase, true);
   transitionTo(STATE_SLAVE_WAITING);
 #endif
 }
@@ -610,6 +634,7 @@ void completeTransmit() {
 
   espNowHelper.sendModuleUpdated(hubAddress, true);
   espNowHelper.sendOrientationTransmission(orientationSlave1Address, true);
+  espNowHelper.sendOrientationTransmission(orientationSlave2Address, true);
 
   playTransmitCompletionEffects();
 }
