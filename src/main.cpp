@@ -496,13 +496,13 @@ void transitionTo(const int state) {
       OLEDController::renderPhaseLoading(oled, currentPhase, COUNTDOWN_SECONDS_PHASE_START);
       break;
     case STATE_PROCESSING:
-      setCurrentState(STATE_PROCESSING);
       OLEDController::renderOrientationLayout(oled);
+      setCurrentState(STATE_PROCESSING);
       break;
     case STATE_TIMED_PROCESSING:
+      OLEDController::renderOrientationLayout(oled);
       setCurrentState(STATE_TIMED_PROCESSING);
       processingPhaseStartTime = millis();
-      OLEDController::renderOrientationLayout(oled);
       break;
     case STATE_MASTER_WAITING:
       setCurrentState(STATE_MASTER_WAITING);
