@@ -1,4 +1,6 @@
 #include <Adafruit_GFX.h>
+#include <FastLED.h>
+#define NO_ADAFRUIT_SSD1306_COLOR_COMPATIBILITY
 #include <Adafruit_SSD1306.h>
 #include <Arduino.h>
 #include <MPU6050_light.h>
@@ -49,6 +51,9 @@ const int STATE_TIMEOUT_SUBMISSION = 10;
 int currentState = STATE_BOOTING;
 int currentPhase = 0;
 bool phaseCompleted[NUM_PHASES] = {};
+
+#define NUM_LEDS 24
+CRGB leds[NUM_LEDS];
 
 struct Orientation {
     int x;
@@ -291,15 +296,10 @@ void setupButtons() {
 
 void setupEffects() {
 #ifdef DEVICE_ROLE_MASTER
-  pinMode(LED_PHASE_1_SUCCESS_PIN, OUTPUT);
-  pinMode(LED_PHASE_2_SUCCESS_PIN, OUTPUT);
-  pinMode(LED_PHASE_3_SUCCESS_PIN, OUTPUT);
-  pinMode(LED_TRANSMITTED_PIN, OUTPUT);
-
-  digitalWrite(LED_PHASE_1_SUCCESS_PIN, LOW);
-  digitalWrite(LED_PHASE_2_SUCCESS_PIN, LOW);
-  digitalWrite(LED_PHASE_3_SUCCESS_PIN, LOW);
-  digitalWrite(LED_TRANSMITTED_PIN, LOW);
+  FastLED.addLeds<WS2812, LED_RING_PIN, GRB>(leds, NUM_LEDS);
+  FastLED.setBrightness(25);
+  FastLED.clear(true);
+  FastLED.show();
 
   digitalWrite(BUZZER_PIN, LOW);
 #endif
@@ -640,24 +640,36 @@ void completeTransmit() {
 }
 
 void playPhaseCompletionEffects(int phase) {
-  switch (phase) {
-    case 0:
-      digitalWrite(LED_PHASE_1_SUCCESS_PIN, HIGH);
-      break;
-    case 1:
-      digitalWrite(LED_PHASE_2_SUCCESS_PIN, HIGH);
-      break;
-    case 2:
-      digitalWrite(LED_PHASE_3_SUCCESS_PIN, HIGH);
-      break;
-    default:
-      break;
+  for (int i = 0; i <= phase; i++) {
+    leds[i] = CRGB::Green;
   }
+  FastLED.show();
   BuzzerController::playSuccessMelody();
 }
 
 void playTransmitCompletionEffects() {
-  digitalWrite(LED_TRANSMITTED_PIN, HIGH);
+  FastLED.clear(true);
+  FastLED.setBrightness(10);
+
+  for (int i = 0; i < NUM_LEDS; i++) {
+    // Chase one full lap around the ring, with the dot landing on position i
+    for (int step = 0; step < NUM_LEDS; step++) {
+      int chasePos = (i + 1 + step) % NUM_LEDS;
+
+      for (int j = 0; j < i; j++) {
+        leds[j] = CRGB::Green;
+      }
+      leds[chasePos] = CRGB::White;
+      FastLED.show();
+      delay(25);
+      leds[chasePos] = CRGB::Black;
+    }
+
+    // Lock in this LED permanently
+    leds[i] = CRGB::Green;
+    FastLED.show();
+    delay(150);
+  }
 
   BuzzerController::playTriumphMelody();
 }

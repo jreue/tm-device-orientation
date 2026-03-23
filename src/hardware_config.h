@@ -38,10 +38,7 @@
 // ====================
 // LED Configuration
 // ====================
-#define LED_PHASE_1_SUCCESS_PIN GPIO_NUM_27
-#define LED_PHASE_2_SUCCESS_PIN GPIO_NUM_26
-#define LED_PHASE_3_SUCCESS_PIN GPIO_NUM_25
-#define LED_TRANSMITTED_PIN GPIO_NUM_32
+#define LED_RING_PIN GPIO_NUM_14
 
 // ====================
 // OLED Display Configuration
@@ -53,7 +50,7 @@
 
 // ====================
 // Buzzer Configuration
-#define BUZZER_PIN GPIO_NUM_14
+#define BUZZER_PIN GPIO_NUM_27
 
 // ====================
 // MPU6050 Configuration
