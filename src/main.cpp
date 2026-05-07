@@ -30,7 +30,7 @@ const unsigned long ORIENTATION_REFRESH_INTERVAL_MS = 100;
 
 unsigned long processingPhaseStartTime = 0;
 
-const int COUNTDOWN_SECONDS_BOOT = 5;
+const int COUNTDOWN_SECONDS_BOOT = 7;
 const int COUNTDOWN_SECONDS_PHASE_START = 5;
 const int COUNTDOWN_SECONDS_INVALID_SUBMISSION = 4;
 const int COUNTDOWN_SECONDS_TIMEOUT_SUBMISSION = 4;
@@ -61,12 +61,14 @@ struct Orientation {
     int z;
 };
 
-const Orientation phaseTargets[NUM_PHASES] = {
-    {0, 0, 10},  // Phase 1
-    {0, 0, 15},  // Phase 2
-    {0, 0, 10}   // Phase 3
-};
-
+const Orientation phaseTargets[NUM_PHASES] = {{5, 10, 0},      // Phase 1 - untimed
+                                              {0, 0, 77},      // Phase 2 - untimed
+                                              {-38, 19, 45},   // Phase 3 - untimed
+                                              {42, -10, 180},  // Phase 4 - untimed
+                                              {8, 50, 8},      // Phase 5 - 30 seconds
+                                              {24, 162, 36},   // Phase 6 - 30 seconds
+                                              {-52, 23, -44},  // Phase 7 - 30 seconds
+                                              {3, 45, 30}};    // Phase 8 - 22 seconds
 struct PhaseMeta {
     bool isTimed;
     int numSeconds;
@@ -74,8 +76,13 @@ struct PhaseMeta {
 
 const PhaseMeta phaseMetas[NUM_PHASES] = {
     {false, 0},  // Phase 1 - untimed
-    {true, 20},  // Phase 2 - 20 seconds
-    {true, 30},  // Phase 3 - 30 seconds
+    {false, 0},  // Phase 2 - untimed
+    {false, 0},  // Phase 3 - untimed
+    {false, 0},  // Phase 4 - untimed
+    {true, 30},  // Phase 5 - 30 seconds
+    {true, 30},  // Phase 6 - 30 seconds
+    {true, 30},  // Phase 7 - 30 seconds
+    {true, 22},  // Phase 8 - 22 seconds
 };
 
 Orientation currentOrientation = {0, 0, 0};
@@ -543,8 +550,8 @@ int getProcessingStateType() {
 }
 
 void setCurrentOrientation() {
-  currentOrientation.x = (int)mpu.getAngleX() * -1;
-  currentOrientation.y = (int)mpu.getAngleY();
+  currentOrientation.x = (int)mpu.getAngleY();
+  currentOrientation.y = (int)mpu.getAngleX();
   currentOrientation.z = (int)(mpu.getAngleZ() - angleZOffset) * -1;
 }
 

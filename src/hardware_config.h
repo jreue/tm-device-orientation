@@ -1,7 +1,7 @@
 #pragma once
 
 #define NUM_PLAYERS 3  // (1=Master only, 2=Master+1, 3=Master+2)
-#define NUM_PHASES 3   // Number of orientation phases players must complete before transmission
+#define NUM_PHASES 8   // Number of orientation phases players must complete before transmission
 #define ORIENTATION_TOLERANCE 2  // degrees of tolerance for matching orientation targets
 
 // ====================
