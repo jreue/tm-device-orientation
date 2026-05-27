@@ -223,9 +223,10 @@ void OLEDController::renderPhaseStaged(Adafruit_SSD1306& oled, int currentPhase,
 
 void OLEDController::renderPhaseProgressIndicators(Adafruit_SSD1306& oled, int currentPhase,
                                                    int totalPhases) {
-  int startX = (128 - (totalPhases - 1) * 20) / 2;
+  int spacing = (totalPhases > 1) ? min(20, 120 / (totalPhases - 1)) : 0;
+  int startX = (128 - spacing * (totalPhases - 1)) / 2;
   for (int i = 0; i < totalPhases; ++i) {
-    int x = startX + i * 20;
+    int x = startX + i * spacing;
     if (i < currentPhase) {
       oled.fillCircle(x, 51, 3, SSD1306_WHITE);
     } else {

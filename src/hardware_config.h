@@ -7,9 +7,9 @@
 // ====================
 // This Devices Configuration
 // ====================
-#define DEVICE_ROLE_MASTER
+// #define DEVICE_ROLE_MASTER
 // #define DEVICE_ROLE_SLAVE_1
-// #define DEVICE_ROLE_SLAVE_2
+#define DEVICE_ROLE_SLAVE_2
 
 #define MASTER_DEVICE_ID 102
 #define SLAVE_DEVICE_ID_1 111
