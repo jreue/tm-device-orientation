@@ -4,6 +4,8 @@
 #include <Adafruit_SSD1306.h>
 #include <Arduino.h>
 #include <MPU6050_light.h>
+#include <Preferences.h>
+#include <esp_task_wdt.h>
 #include <shared_hardware_config.h>
 #include <stdint.h>
 
@@ -88,6 +90,8 @@ const PhaseMeta phaseMetas[NUM_PHASES] = {
 Orientation currentOrientation = {0, 0, 0};
 float angleZOffset = 0.0f;
 
+Preferences preferences;
+
 struct PlayerSubmission {
     uint8_t deviceId;
     bool success;
@@ -158,6 +162,11 @@ void playPhaseCompletionEffects(int completedPhase);
 void playTransmitCompletionEffects();
 
 bool isCalibrated();
+void saveProgress();
+bool loadProgress();
+void clearProgress();
+void restoreCompletionEffects();
+void handleClearProgressCombo();
 
 // Returns true if all phases are completed
 bool isCalibrated() {
@@ -167,6 +176,54 @@ bool isCalibrated() {
     }
   }
   return true;
+}
+
+void saveProgress() {
+  preferences.begin("tm-orient", false);
+  preferences.putInt("phase", currentPhase);
+  uint8_t completedMask = 0;
+  for (int i = 0; i < NUM_PHASES; i++) {
+    if (phaseCompleted[i])
+      completedMask |= (1 << i);
+  }
+  preferences.putUChar("completed", completedMask);
+  preferences.end();
+  Serial.printf("Progress saved: phase=%d, mask=0x%02X\n", currentPhase, completedMask);
+}
+
+bool loadProgress() {
+  preferences.begin("tm-orient", true);
+  int savedPhase = preferences.getInt("phase", -1);
+  uint8_t completedMask = preferences.getUChar("completed", 0);
+  preferences.end();
+
+  if (savedPhase < 0 || savedPhase > NUM_PHASES) {
+    Serial.println("No saved progress found.");
+    return false;
+  }
+
+  currentPhase = savedPhase;
+  for (int i = 0; i < NUM_PHASES; i++) {
+    phaseCompleted[i] = (completedMask >> i) & 1;
+  }
+  Serial.printf("Progress loaded: phase=%d, mask=0x%02X\n", currentPhase, completedMask);
+  return true;
+}
+
+void clearProgress() {
+  preferences.begin("tm-orient", false);
+  preferences.clear();
+  preferences.end();
+  Serial.println("Progress cleared.");
+}
+
+void restoreCompletionEffects() {
+  if (currentPhase == 0)
+    return;
+  for (int i = 0; i < currentPhase; i++) {
+    leds[i] = CRGB::Green;
+  }
+  FastLED.show();
 }
 
 void setup() {
@@ -187,7 +244,10 @@ void setup() {
   setupButtons();
   setupEffects();
 
+  loadProgress();
+
 #ifdef DEVICE_ROLE_MASTER
+  restoreCompletionEffects();
   transitionTo(STATE_PHASE_STAGED);
 #endif
 #ifdef DEVICE_ROLE_SLAVE_1
@@ -315,8 +375,20 @@ void setupEffects() {
 void calculateOffsets() {
   Serial.println("Calculating MPU6050 offsets, do not move MPU6050");
   delay(1000);
+  esp_task_wdt_reset();
   mpu.calcOffsets(CALCULATE_OFFSET_GYRO, CALCULATE_OFFSET_ACCEL);
+  esp_task_wdt_reset();
   delay(1000);
+}
+
+void handleClearProgressCombo() {
+  Serial.println("Both buttons held — clearing saved progress.");
+  currentPhase = 0;
+  for (int i = 0; i < NUM_PHASES; i++) phaseCompleted[i] = false;
+  clearProgress();
+  FastLED.clear(true);
+  FastLED.show();
+  transitionTo(STATE_PHASE_STAGED);
 }
 
 void handleOffsetsButtonPressed(void* button_handle, void* usr_data) {
@@ -338,6 +410,13 @@ void handleOffsetsButtonPressed(void* button_handle, void* usr_data) {
 
 void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Submit phase button pressed");
+
+#ifdef DEVICE_ROLE_MASTER
+  if (digitalRead(TRANSMIT_BUTTON_PIN) == LOW) {
+    handleClearProgressCombo();
+    return;
+  }
+#endif
 
   if (currentState != STATE_PROCESSING && currentState != STATE_TIMED_PROCESSING) {
     return;
@@ -363,6 +442,16 @@ void handleSubmitPhaseButtonPressed(void* button_handle, void* usr_data) {
 void handleLoadPhaseButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Master load phase button pressed");
 
+#ifdef DEBUG_MODE
+  if (digitalRead(TRANSMIT_BUTTON_PIN) == LOW &&
+      (currentState == STATE_PROCESSING || currentState == STATE_TIMED_PROCESSING)) {
+    Serial.println("[DEBUG] Force-passing phase for all players.");
+    for (int i = 0; i < NUM_PLAYERS; i++) playerSubmissions[i].success = true;
+    processAllPlayersSubmitted();
+    return;
+  }
+#endif
+
   if (currentState != STATE_PHASE_STAGED) {
     return;
   }
@@ -375,6 +464,21 @@ void handleLoadPhaseButtonPressed(void* button_handle, void* usr_data) {
 
 void handleTransmitButtonPressed(void* button_handle, void* usr_data) {
   Serial.println("Master transmit button pressed");
+
+  if (digitalRead(SUBMIT_PHASE_BUTTON_PIN) == LOW) {
+    handleClearProgressCombo();
+    return;
+  }
+
+#ifdef DEBUG_MODE
+  if (digitalRead(LOAD_PHASE_BUTTON_PIN) == LOW &&
+      (currentState == STATE_PROCESSING || currentState == STATE_TIMED_PROCESSING)) {
+    Serial.println("[DEBUG] Force-passing phase for all players.");
+    for (int i = 0; i < NUM_PLAYERS; i++) playerSubmissions[i].success = true;
+    processAllPlayersSubmitted();
+    return;
+  }
+#endif
 
   if (currentState != STATE_TRANSMIT_STAGED) {
     return;
@@ -633,12 +737,14 @@ void completePhase() {
   phaseCompleted[currentPhase] = true;
   currentPhase++;
 
+  saveProgress();
   playPhaseCompletionEffects(completedPhase);
 }
 
 void completeTransmit() {
   transitionTo(STATE_TRANSMIT_COMPLETE);
 
+  clearProgress();
   espNowHelper.sendModuleUpdated(hubAddress, true);
   espNowHelper.sendOrientationTransmission(orientationSlave1Address, true);
   espNowHelper.sendOrientationTransmission(orientationSlave2Address, true);

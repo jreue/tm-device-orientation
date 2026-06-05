@@ -1,5 +1,9 @@
 #pragma once
 
+// Uncomment to enable debug mode (force-pass any phase on master by holding Reset Offsets +
+// pressing Submit)
+#define DEBUG_MODE
+
 #define NUM_PLAYERS 3  // (1=Master only, 2=Master+1, 3=Master+2)
 #define NUM_PHASES 8   // Number of orientation phases players must complete before transmission
 #define ORIENTATION_TOLERANCE 2  // degrees of tolerance for matching orientation targets
@@ -7,9 +11,9 @@
 // ====================
 // This Devices Configuration
 // ====================
-// #define DEVICE_ROLE_MASTER
+#define DEVICE_ROLE_MASTER
 // #define DEVICE_ROLE_SLAVE_1
-#define DEVICE_ROLE_SLAVE_2
+// #define DEVICE_ROLE_SLAVE_2
 
 #define MASTER_DEVICE_ID 102
 #define SLAVE_DEVICE_ID_1 111
